@@ -6,7 +6,7 @@ In order to use the docker container, you have to build it first. You can do so 
 
 ```docker build . -t spaceship```
 
-This will create and build the application container and name the resulting image "chameleon"
+This will create and build the application container and name the resulting image "spaceship"
 
 Afterwards, use this command:
 
