@@ -9,6 +9,7 @@ export default class Player extends Sprite {
     grace = 200;
     lives = 3;
     type = 'player';
+    mode = "";
     init() {
         this.lives = 3;
         this.hits = 0;
@@ -18,6 +19,11 @@ export default class Player extends Sprite {
         this.decay = 0;
         this.grace = 200;
         this.rotation = 0;
+        this.speed = 0;
+        this.doomed = false;
+    }
+    update() {
+
     }
     draw(ctx) {
         if (this.lives < 1) {
