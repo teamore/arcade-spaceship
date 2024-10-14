@@ -1,6 +1,7 @@
 import Sprite from './Sprite.js';
 import Enemy from "./Enemy.js";
 import Player from "./Player.js";
+import Reward from "./Reward.js";
 export class Stage extends HTMLElement {
     currentFrame = 0;
     warmup = 150;
@@ -14,6 +15,11 @@ export class Stage extends HTMLElement {
     background;
     showScore = 0;
     debug = false;
+    fps = 60;
+    rewardSchedule = {
+        20: "bomb", 50: "bomb", 150: "1up", 10000: "bomb",
+        12500: "1up", 15000: "bomb", 17500: "1up", 20000: "bomb",
+        22500: "1up", 25000: "bomb", 30000: "1up", 35000: "bomb"}
     constructor() {
         super();
         // Create a canvas element
@@ -73,6 +79,7 @@ export class Stage extends HTMLElement {
     init() {
         this.sprites = [];
         this.levelInit();
+        this.rewards = {...this.rewardSchedule};
         this.player = new Player(this.getAttribute('player'));
         this.player.x = this.canvas.width / 2;
         this.player.y = this.canvas.height / 2;
@@ -85,6 +92,7 @@ export class Stage extends HTMLElement {
         this.background = new Sprite(src);
         this.background.x = this.canvas.width / 2;
         this.background.y = this.canvas.height / 2;
+        this.background.speed = 0;
         this.background.scale = 1;
         this.background.width = this.canvas.width * 2;
         this.background.height = this.canvas.height * 2;
@@ -96,11 +104,11 @@ export class Stage extends HTMLElement {
     }
     spawnEnemy() {
         /* spawn enemy sprite */
-        const enemy = new Enemy(this.getAttribute('enemy'), 0, 0, this.player);
+        const enemy = new Enemy(this.getAttribute('enemy'), this.player);
         enemy.randomizeXY(this.canvas.width, this.canvas.height);
-        enemy.orientate();
         enemy.scale = 0.15;
         this.enemies ++;
+        enemy.mode = "follow";
         this.speed = 1 + this.level / 10;
         enemy.destroy = () => {
             this.sprites.splice(this.sprites.indexOf(enemy), 1);
@@ -111,12 +119,15 @@ export class Stage extends HTMLElement {
     run() {
         this.currentFrame ++;
         this.background.rotation = - this.player.rotation;
-        requestAnimationFrame(() => this.run());
+        setTimeout(() => {
+            requestAnimationFrame(() => {this.run();});
+        }, 1000 / this.fps);
         this.cleanup();
         this.interact();
         this.player.heat = this.player.heat > 0 ? this.player.heat - 0.2 : 0;
         if (this.player.lives < 1) {
-            if (this.player) {
+            if (this.player && !this.player.doomed) {
+                this.sound(this.getAttribute('gameover'));
                 this.player.destroy();
             }
         } else if (this.currentFrame > this.warmup) {
@@ -140,6 +151,9 @@ export class Stage extends HTMLElement {
             if (Math.abs(dx) < other.w && Math.abs(dy) < other.h ) {
                 /* collision detected */
                 if (sprite.type == 'player' && other.type == 'enemy' && !sprite.lives < 1) {
+                    if (!this.player.grace && sprite.lives > 1) {
+                        this.sound(this.getAttribute('blowup2'));
+                    }
                     sprite.onCollision(this);
                     other.destroy();
                     this.explode(sprite.x, sprite.y, 0.25, 30);
@@ -151,8 +165,10 @@ export class Stage extends HTMLElement {
                     other.explode();
                     sprite.explode();
                 }
-                if (sprite.type == 'enemy' && other.type == 'bullet' && !sprite.doomed) {
+                if (sprite.type == 'enemy' && (other.type == 'bullet') && !sprite.doomed) {
+                    this.sound(this.getAttribute('blowup'));
                     this.player.score += Math.ceil(5 - this.player.heat / 5 + this.level * 0.25) * 10;
+                    this.checkForRewards();
                     this.player.hits++;
                     sprite.explode();
                     other.destroy();
@@ -161,6 +177,27 @@ export class Stage extends HTMLElement {
             }
         }
 
+    }
+    spawnReward(rewardType) {
+        this.sound(this.getAttribute('bonus'));
+        const reward = new Reward(this.getAttribute(rewardType), this.player);
+        reward.randomizeXY(this.canvas.width, this.canvas.height);
+        reward.scale = 0.2;
+        reward.type = rewardType;
+        reward.destroy = () => {
+            this.sprites.splice(this.sprites.indexOf(reward), 1);
+        }
+        this.sprites.push(reward);
+
+    }
+    checkForRewards() {
+        for(let reward in this.rewards) {
+            if (this.player.score >= reward) {
+                this.spawnReward(this.rewards[reward]);
+                delete this.rewards[reward];
+                return;
+            }
+        }
     }
 
     // Custom method to draw something on the canvas
@@ -227,16 +264,18 @@ export class Stage extends HTMLElement {
         this.player.rotation += this.rotate;
         for (let sprite of this.sprites) {
             this.collisionDetection(sprite);
-            sprite.x += sprite.dx || 0;
-            sprite.y += sprite.dy || 0;
+            sprite.update();
             sprite.draw(this.ctx);
         }
     }
     explode(x,y,scale = 0.05, emitters = 15) {
         for (let i = 0; i < emitters; i++) {
-            const explosion = new Sprite(this.getAttribute('explosion'+(Math.random() < 0.8 ? "" : "2")));
+            const idx = Math.floor(Math.random() * 4)+1;
+            const explosion = new Sprite(this.getAttribute('explosion'+idx.toString()));
             explosion.x = x + Math.random() * 30 - 15;
             explosion.y = y + Math.random() * 30 - 15;
+            explosion.rotation = Math.random() * Math.PI * 2;
+            explosion.spin = Math.random() * 0.2 - 0.1;
             explosion.scale = scale + Math.random() * scale / 2;
             explosion.ttl = 60;
             this.sprites.push(explosion);
@@ -249,13 +288,21 @@ export class Stage extends HTMLElement {
             }
         }
     }
+    sound(src, volume = undefined) {
+        const audio = new Audio(src);
+        audio.volume = volume || 0.5;
+        audio.play();
+    }
     fire() {
         const bullet = new Sprite(this.getAttribute('bullet'));
-        bullet.rotation = this.player.rotation;
+        const idx = Math.floor(this.player.heat / 5) + 1;
+        this.sound(this.getAttribute('laser' + idx.toString()));
+        bullet.rotation = bullet.bearing = this.player.rotation;
         bullet.dx = 14  * Math.sin(bullet.rotation);
         bullet.dy = -14 * Math.cos(bullet.rotation);
         bullet.x = this.player.x + bullet.dx * 3;
         bullet.y = this.player.y + bullet.dy * 3;
+        bullet.speed = 20;
         bullet.ttl = 40;
         bullet.type = 'bullet';
         this.player.shots ++;
