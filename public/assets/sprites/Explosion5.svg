@@ -3,15 +3,15 @@
   <defs>
     <style>
       .cls-1 {
-        fill: url(#Unbenannter_Verlauf_26);
+        fill: url(#Unbenannter_Verlauf_17);
       }
     </style>
-    <radialGradient id="Unbenannter_Verlauf_26" data-name="Unbenannter Verlauf 26" cx="72" cy="72" fx="72" fy="72" r="72" gradientUnits="userSpaceOnUse">
-      <stop offset=".81" stop-color="#d3d400"/>
-      <stop offset="1" stop-color="#efff00" stop-opacity="0"/>
+    <radialGradient id="Unbenannter_Verlauf_17" data-name="Unbenannter Verlauf 17" cx="72" cy="72" fx="29.84" fy="13.64" r="72" gradientUnits="userSpaceOnUse">
+      <stop offset=".75" stop-color="#fff"/>
+      <stop offset="1" stop-color="#fff" stop-opacity="0"/>
     </radialGradient>
   </defs>
-  <g id="Explosion">
+  <g id="Explosion2">
     <circle class="cls-1" cx="72" cy="72" r="72"/>
   </g>
 </svg>

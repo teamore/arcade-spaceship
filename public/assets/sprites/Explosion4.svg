@@ -1,0 +1,66 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg id="Ebene_2" data-name="Ebene 2" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 162 144">
+  <defs>
+    <style>
+      .cls-1 {
+        fill: url(#Unbenannter_Verlauf_10-3);
+        opacity: .3;
+      }
+
+      .cls-2 {
+        fill: url(#Unbenannter_Verlauf_10-2);
+        opacity: .4;
+      }
+
+      .cls-3 {
+        fill: url(#Unbenannter_Verlauf_10);
+        opacity: .7;
+      }
+
+      .cls-4 {
+        fill: url(#Goldring);
+      }
+
+      .cls-5 {
+        fill: url(#Unbenannter_Verlauf_10-4);
+        opacity: .2;
+      }
+    </style>
+    <radialGradient id="Goldring" cx="81" cy="72" fx="129.92" fy="19.17" r="72" gradientUnits="userSpaceOnUse">
+      <stop offset=".74" stop-color="#fff" stop-opacity="0"/>
+      <stop offset=".76" stop-color="#fff" stop-opacity="0"/>
+      <stop offset=".77" stop-color="#fff" stop-opacity=".04"/>
+      <stop offset=".79" stop-color="#fff" stop-opacity=".1"/>
+      <stop offset=".79" stop-color="#fff" stop-opacity=".18"/>
+      <stop offset=".8" stop-color="#fff" stop-opacity=".28"/>
+      <stop offset=".81" stop-color="#fff" stop-opacity=".4"/>
+      <stop offset=".82" stop-color="#fff" stop-opacity=".5"/>
+      <stop offset=".82" stop-color="#dbc01f"/>
+      <stop offset=".83" stop-color="#f1dc3a"/>
+      <stop offset=".84" stop-color="#f5e13f"/>
+      <stop offset=".84" stop-color="#dbc01f"/>
+      <stop offset=".85" stop-color="#e1ca45"/>
+      <stop offset=".87" stop-color="#e9d876"/>
+      <stop offset=".89" stop-color="#efe4a0"/>
+      <stop offset=".91" stop-color="#f5eec2"/>
+      <stop offset=".93" stop-color="#f9f5dd"/>
+      <stop offset=".95" stop-color="#fcfaf0"/>
+      <stop offset=".98" stop-color="#fefdfb"/>
+      <stop offset="1" stop-color="#fff"/>
+    </radialGradient>
+    <radialGradient id="Unbenannter_Verlauf_10" data-name="Unbenannter Verlauf 10" cx="144" cy="54" fx="144" fy="54" r="18" gradientUnits="userSpaceOnUse">
+      <stop offset=".81" stop-color="#000"/>
+      <stop offset="1" stop-color="#efff00" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="Unbenannter_Verlauf_10-2" data-name="Unbenannter Verlauf 10" cx="27" cy="36" fx="27" fy="36" r="27" xlink:href="#Unbenannter_Verlauf_10"/>
+    <radialGradient id="Unbenannter_Verlauf_10-3" data-name="Unbenannter Verlauf 10" cx="63" cy="108" fx="63" fy="108" r="9" xlink:href="#Unbenannter_Verlauf_10"/>
+    <radialGradient id="Unbenannter_Verlauf_10-4" data-name="Unbenannter Verlauf 10" cx="121.5" cy="130.5" fx="121.5" fy="130.5" r="13.5" xlink:href="#Unbenannter_Verlauf_10"/>
+  </defs>
+  <g id="Explosion">
+    <circle class="cls-4" cx="81" cy="72" r="72"/>
+    <circle class="cls-3" cx="144" cy="54" r="18"/>
+    <circle class="cls-2" cx="27" cy="36" r="27"/>
+    <circle class="cls-1" cx="63" cy="108" r="9"/>
+    <circle class="cls-5" cx="121.5" cy="130.5" r="13.5"/>
+  </g>
+</svg>

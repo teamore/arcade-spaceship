@@ -1,0 +1,48 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg id="Ebene_2" data-name="Ebene 2" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 162 144">
+  <defs>
+    <style>
+      .cls-1 {
+        fill: url(#Unbenannter_Verlauf_10-3);
+        opacity: .3;
+      }
+
+      .cls-2 {
+        fill: url(#Unbenannter_Verlauf_10-2);
+        opacity: .4;
+      }
+
+      .cls-3 {
+        fill: url(#Unbenannter_Verlauf_10);
+        opacity: .7;
+      }
+
+      .cls-4 {
+        fill: url(#Unbenannter_Verlauf_26);
+      }
+
+      .cls-5 {
+        fill: url(#Unbenannter_Verlauf_10-4);
+        opacity: .2;
+      }
+    </style>
+    <radialGradient id="Unbenannter_Verlauf_26" data-name="Unbenannter Verlauf 26" cx="81" cy="72" fx="81" fy="72" r="72" gradientUnits="userSpaceOnUse">
+      <stop offset=".81" stop-color="#d3d400"/>
+      <stop offset="1" stop-color="#efff00" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="Unbenannter_Verlauf_10" data-name="Unbenannter Verlauf 10" cx="144" cy="54" fx="144" fy="54" r="18" gradientUnits="userSpaceOnUse">
+      <stop offset=".81" stop-color="#000"/>
+      <stop offset="1" stop-color="#efff00" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="Unbenannter_Verlauf_10-2" data-name="Unbenannter Verlauf 10" cx="27" cy="36" fx="27" fy="36" r="27" xlink:href="#Unbenannter_Verlauf_10"/>
+    <radialGradient id="Unbenannter_Verlauf_10-3" data-name="Unbenannter Verlauf 10" cx="63" cy="108" fx="63" fy="108" r="9" xlink:href="#Unbenannter_Verlauf_10"/>
+    <radialGradient id="Unbenannter_Verlauf_10-4" data-name="Unbenannter Verlauf 10" cx="121.5" cy="130.5" fx="121.5" fy="130.5" r="13.5" xlink:href="#Unbenannter_Verlauf_10"/>
+  </defs>
+  <g id="Explosion">
+    <circle class="cls-4" cx="81" cy="72" r="72"/>
+    <circle class="cls-3" cx="144" cy="54" r="18"/>
+    <circle class="cls-2" cx="27" cy="36" r="27"/>
+    <circle class="cls-1" cx="63" cy="108" r="9"/>
+    <circle class="cls-5" cx="121.5" cy="130.5" r="13.5"/>
+  </g>
+</svg>
