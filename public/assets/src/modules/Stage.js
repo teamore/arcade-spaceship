@@ -17,7 +17,7 @@ export class Stage extends HTMLElement {
     debug = false;
     fps = 60;
     rewardSchedule = {
-        20: "bomb", 50: "bomb", 150: "1up", 10000: "bomb",
+        2000: "bomb", 5000: "bomb", 7500: "1up", 10000: "bomb",
         12500: "1up", 15000: "bomb", 17500: "1up", 20000: "bomb",
         22500: "1up", 25000: "bomb", 30000: "1up", 35000: "bomb"}
     constructor() {
