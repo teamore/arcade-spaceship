@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg id="Ebene_2" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 135 247">
+  <defs>
+    <style>
+      .cls-1 {
+        fill: url(#Unbenannter_Verlauf_21);
+      }
+    </style>
+    <radialGradient id="Unbenannter_Verlauf_21" data-name="Unbenannter Verlauf 21" cx="69.14" cy="60.31" fx="69.14" fy="60.31" r="142.37" gradientTransform="translate(99.3 -8.83) rotate(90) scale(1 .5)" gradientUnits="userSpaceOnUse">
+      <stop offset=".45" stop-color="#fff"/>
+      <stop offset=".97" stop-color="#fff" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+  <g id="Thrust">
+    <path class="cls-1" d="M135,98.5c0,82.01-67.5,149-67.5,148.5S0,180.51,0,98.5,30.22,0,67.5,0s67.5,16.49,67.5,98.5Z"/>
+  </g>
+</svg>
