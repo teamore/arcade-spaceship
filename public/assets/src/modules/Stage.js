@@ -264,14 +264,14 @@ export class Stage extends HTMLElement {
         this.player.rotation += this.rotate;
         for (let sprite of this.sprites) {
             this.collisionDetection(sprite);
-            sprite.update();
-            sprite.draw(this.ctx);
+            sprite.animate(this.ctx);
         }
     }
     explode(x,y,scale = 0.05, emitters = 15) {
         for (let i = 0; i < emitters; i++) {
             const idx = Math.floor(Math.random() * 4)+1;
             const explosion = new Sprite(this.getAttribute('explosion'+idx.toString()));
+            explosion.suspend = Math.floor(Math.random() * 30);
             explosion.x = x + Math.random() * 30 - 15;
             explosion.y = y + Math.random() * 30 - 15;
             explosion.rotation = Math.random() * Math.PI * 2;

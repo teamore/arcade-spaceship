@@ -14,6 +14,7 @@ export default class Sprite extends Image {
     type = 'sprite'
     alpha = 1;
     doomed = false;
+    suspend = false;
     constructor(src, target = undefined, x = undefined, y = undefined) {
         super();
         if (x === undefined || y === undefined) {
@@ -43,6 +44,14 @@ export default class Sprite extends Image {
             const dy = this.target.y - this.y;
             this.bearing = Math.atan2(dy, dx) + Math.PI / 2;
         }
+    }
+    animate(ctx) {
+        if (this.suspend) {
+            this.suspend--;
+            return;
+        }
+        this.update(ctx);
+        this.draw(ctx);
     }
     update() {
         if (!this.doomed && this.mode === "follow" && !(this.target.type === "player" && this.target.lives < 1)) {
