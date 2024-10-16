@@ -25,8 +25,16 @@ export class Stage extends HTMLElement {
         4500: "bomb", 5000: "1up", 6000: "bomb", 7000: "supercharge",
         8000: "bomb", 9000: "bomb", 10000: "1up", 11000: "xray",
         12000: "laser", 13000: "bomb", 14000: "shield", 15000: "1up",
-        16000: "laser", 17000: "bomb", 18000: "supercharge", 19000: "1up",
-        20000: "1up", 21000: "xray", 22000: "bomb", 23000: "shield", 25000: "1up"}
+        16000: "laser", 17000: "bomb", 18000: "supercharge", 19000: "xray",
+        20000: "1up", 21000: "laser", 22000: "bomb", 23000: "shield", 25000: "1up",
+        26000: "laser", 27000: "bomb", 28000: "supercharge", 29000: "shield",
+        30000: "1up", 31000: "xray", 32000: "bomb", 33000: "shield", 35000: "supercharge",
+        36000: "laser", 37000: "bomb", 38000: "supercharge", 39000: "shield",
+        40000: "1up", 41000: "xray", 42000: "bomb", 43000: "shield", 45000: "supercharge",
+        46000: "laser", 47000: "bomb", 48000: "supercharge", 49000: "shield",
+        50000: "1up", 51000: "xray", 52000: "bomb", 53000: "shield", 55000: "supercharge"
+
+    }
     rewardsClaimed = 0;
     constructor() {
         super();
