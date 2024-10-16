@@ -88,8 +88,8 @@ export default class Sprite extends Image {
             this.x = this.target.x + Math.cos(this.bearing) * (this.radius || 100);
             this.y = this.target.y + Math.sin(this.bearing) * (this.radius || 100);
         } else {
-            this.x += Math.cos(this.bearing - Math.PI / 2) * (this.speed || 0 - this.pushback || 0);
-            this.y += Math.sin(this.bearing - Math.PI / 2) * (this.speed || 0 - this.pushback || 0);
+            this.x += Math.cos(this.bearing - Math.PI / 2) * ((this.speed || 0) - (this.pushback || 0));
+            this.y += Math.sin(this.bearing - Math.PI / 2) * ((this.speed || 0) - (this.pushback || 0));
         }
     }
     distance(x,y) {

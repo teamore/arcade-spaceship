@@ -35,14 +35,11 @@ export default class Player extends Sprite {
             this.grace --;
             this.alpha = this.grace % 5 ? 0 : 1;
         }
-        if (this.shield) {
-            this.alpha = this.frame % 5 ? 0 : 1;
-        }
         super.draw(ctx);
         ctx.globalAlpha = 1;
     }
     onCollision() {
-        if (this.grace > 0) {
+        if (this.grace > 0 || this.shield) {
             return;
         }
         this.collisions++;
