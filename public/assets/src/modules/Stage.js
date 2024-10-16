@@ -2,24 +2,32 @@ import Sprite from './Sprite.js';
 import Enemy from "./Enemy.js";
 import Player from "./Player.js";
 import Reward from "./Reward.js";
+import AudioDesk from "./AudioDesk.js";
 export class Stage extends HTMLElement {
     currentFrame = 0;
     warmup = 150;
     keyMap = {};
     player = {}
     sprites = [];
-    bullets = [];
+    audio = new AudioDesk();
     rotate = 0;
     level = 0;
     enemies = 0;
     background;
+    paused = false;
     showScore = 0;
     debug = false;
     fps = 60;
+    upgrades = [];
     rewardSchedule = {
-        2000: "bomb", 5000: "bomb", 7500: "1up", 10000: "bomb",
-        12500: "1up", 15000: "bomb", 17500: "1up", 20000: "bomb",
-        22500: "1up", 25000: "bomb", 30000: "1up", 35000: "bomb"}
+        250: "bomb", 500: "bomb", 1000: "bomb", 1500: "bomb", 2000: "shield",
+        2500: "bomb", 3000: "bomb", 3500: "bomb", 4000: "laser",
+        4500: "bomb", 5000: "1up", 6000: "bomb", 7000: "supercharge",
+        8000: "bomb", 9000: "bomb", 10000: "1up", 11000: "xray",
+        12000: "laser", 13000: "bomb", 14000: "shield", 15000: "1up",
+        16000: "laser", 17000: "bomb", 18000: "supercharge", 19000: "1up",
+        20000: "1up", 21000: "xray", 22000: "bomb", 23000: "shield", 25000: "1up"}
+    rewardsClaimed = 0;
     constructor() {
         super();
         // Create a canvas element
@@ -38,13 +46,38 @@ export class Stage extends HTMLElement {
         this.level = 0;
         this.enemies = 0;
         this.warmup = 150;
+        this.upgrades = [];
         for (let sprite of this.sprites) {
             sprite.destroy();
         }
         this.init();
     }
     onKey(e) {
-        this.keyMap[e.key] = e.type == 'keydown';
+        if (e.type == 'keydown') {
+            if (e.key == "p") {
+                if (this.paused) {
+                    this.currentFrame = this.paused;
+                    this.paused = false;
+                } else {
+                    this.paused = this.currentFrame;
+                }
+            }
+            if (["1","2","3","4","5","6","7","8","9"].includes(e.key)) {
+                let upgrade = this.upgrades[e.key - 1];
+                if (upgrade) {
+                    upgrade.active = !upgrade.active;
+                }
+                if (upgrade.type == "shield") {
+                    this.player.shield = upgrade.active;
+                }
+            }
+        }
+        if (!this.paused) {
+            this.keyMap[e.key] = e.type == 'keydown';
+        }
+    }
+    getUpgrade(upgrade) {
+        return this.upgrades.filter(u => u.type == upgrade && u.active)[0];
     }
     interact() {
         if (this.player.lives < 1) {
@@ -60,13 +93,36 @@ export class Stage extends HTMLElement {
         } else {
             this.rotate /= 1.1;
         }
+        if (this.keyMap["Escape"] && this.player.heat <= 0) {
+            this.shockwave();
+            this.player.heat = 60;
+        }
         if (this.keyMap[" "]) {
-            if (this.player.decay < 0 && this.player.heat < 20) {
+            this.audio.stop('powerup');
+            if (this.player.decay < 0 && this.player.heat < 40) {
                 this.player.decay = 3;
+                if (this.player.heat < 0) {
+                    this.player.heat = 0;
+                }
                 this.player.heat += 2;
+                const laserUpgrade = this.getUpgrade("laser");
+                if (laserUpgrade?.active) {
+                    laserUpgrade.juice -= 1;
+                    if (laserUpgrade.juice < 1) {
+                        this.upgrades.splice(this.upgrades.indexOf(laserUpgrade), 1);
+                    }
+                    this.fire(-4);
+                    this.fire(4);
+                }
                 this.fire();
             }
             this.player.decay --;
+        } else {
+            if (this.audio.media['powerup'].paused && this.player.heat > 0) {
+                this.audio.play('powerup', true,10 - this.player.heat / 4);
+            } else if (this.player.heat <= 0) {
+                this.audio.stop('powerup');
+            }
         }
 
     }
@@ -76,10 +132,34 @@ export class Stage extends HTMLElement {
         this.init();
         this.run();
     }
+
     init() {
         this.sprites = [];
-        this.levelInit();
+        this.audio.loadSounds(
+            {
+                "enemyCollision": this.getAttribute('enemyCollision'),
+                "playerDeath": this.getAttribute('playerDeath'),
+                "enemyDeath1": this.getAttribute('enemyDeath1'),
+                "enemyDeath2": this.getAttribute('enemyDeath2'),
+                "enemyDeath3": this.getAttribute('enemyDeath3'),
+                "bonus": this.getAttribute('bonus'),
+                "laser1": this.getAttribute('laser1'),
+                "laser2": this.getAttribute('laser2'),
+                "laser3": this.getAttribute('laser3'),
+                "laser4": this.getAttribute('laser4'),
+                "laser5": this.getAttribute('laser5'),
+                "laser6": this.getAttribute('laser6'),
+                "pushback": this.getAttribute('pushback'),
+                "levelup": this.getAttribute('levelup'),
+                "extralife": this.getAttribute('extralife'),
+                "gameover": this.getAttribute('gameover'),
+                "powerup":  this.getAttribute('powerup'),
+                "charged": this.getAttribute('charged'),
+                "charged2": this.getAttribute('charged2'),
+            }
+        );
         this.rewards = {...this.rewardSchedule};
+        this.levelInit();
         this.player = new Player(this.getAttribute('player'));
         this.player.x = this.canvas.width / 2;
         this.player.y = this.canvas.height / 2;
@@ -101,6 +181,45 @@ export class Stage extends HTMLElement {
         this.enemies = 0;
         this.player.grace = 50;
         this.warmup = this.currentFrame + 150;
+        this.audio.play('levelup');
+        this.pushEnemies();
+    }
+    shockwave() {
+        const whoosh = new Sprite(this.getAttribute('shockwave'));
+        whoosh.x = this.canvas.width / 2;
+        whoosh.y = this.canvas.height / 2;
+        whoosh.scale = 0.2;
+        whoosh.ttl = 40;
+        whoosh.alpha = 1;
+        whoosh.type = "shockwave"
+        whoosh.onBeforeUpdate = () => {
+            whoosh.scale += 0.2;
+            whoosh.alpha /= 1.05;
+        }
+        for(let sprite of this.sprites) {
+            if (sprite.type == 'enemy' && !sprite.doomed) {
+                let distance = sprite.distance(whoosh.x, whoosh.y);
+                if (distance < 300) {
+                    this.audio.play('enemyDeath'+Math.floor(Math.random() * 3 + 1).toString());
+                    sprite.explode();
+                    this.explode(sprite.x, sprite.y);
+                } else {
+                    sprite.pushback = 10 - distance / 50;
+                }
+            }
+        }
+        whoosh.destroy = () => {
+            this.sprites.splice(this.sprites.indexOf(whoosh), 1);
+        }
+        this.sprites.push(whoosh);
+        this.audio.play('pushback');
+    }
+    pushEnemies(amount = 10) {
+        for (let sprite of this.sprites) {
+            if (sprite.type === 'enemy') {
+                sprite.pushback = amount;
+            }
+        }
     }
     spawnEnemy() {
         /* spawn enemy sprite */
@@ -118,16 +237,65 @@ export class Stage extends HTMLElement {
     }
     run() {
         this.currentFrame ++;
-        this.background.rotation = - this.player.rotation;
         setTimeout(() => {
             requestAnimationFrame(() => {this.run();});
         }, 1000 / this.fps);
+        const shield = this.getUpgrade('shield');
+        if (shield?.active) {
+            shield.juice -= 0.1;
+            if (shield.juice < 1) {
+                this.upgrades.splice(this.upgrades.indexOf(shield), 1);
+                this.player.shield = false;
+            }
+        }
+        if (this.paused) {
+            this.drawSprites();
+            this.drawHUD();
+            return;
+        }
+        const xray = this.getUpgrade("xray");
+        if (xray?.active) {
+            let closestDistance = 1000;
+            let closestEnemy = undefined;
+            for (let sprite of this.sprites) {
+                if (sprite.type === "enemy" && !sprite.doomed) {
+                    let distance = sprite.distance(this.player.x, this.player.y);
+                    if (distance < closestDistance) {
+                        closestDistance = distance;
+                        closestEnemy = sprite;
+                    }
+                }
+            }
+            xray.juice -= 0.1;
+            if (xray.juice < 1) {
+                this.upgrades.splice(this.upgrades.indexOf(xray), 1);
+            }
+            if (closestEnemy) {
+                this.player.orientate(closestEnemy.x, closestEnemy.y);
+                this.player.rotation = (this.player.rotation + this.player.bearing) / 2;
+            }
+        }
+        this.background.rotation = - this.player.rotation;
         this.cleanup();
         this.interact();
-        this.player.heat = this.player.heat > 0 ? this.player.heat - 0.2 : 0;
+        this.player.heat = this.player.heat - 0.2;
+        const supercharge = this.getUpgrade("supercharge");
+        if (supercharge?.active && this.player.heat > 0) {
+            this.player.heat -= 0.4;
+            supercharge.juice -= 0.4;
+            if (supercharge.juice < 1) {
+                this.upgrades.splice(this.upgrades.indexOf(supercharge), 1);
+            }
+        }
+        if (this.player.heat > 18.8 && this.player.heat <= 20) {
+            this.audio.play('charged');
+        } else if (this.player.heat > 0 && this.player.heat <= 0.2) {
+            this.audio.stop('powerup');
+            this.audio.play('charged2');
+        }
         if (this.player.lives < 1) {
             if (this.player && !this.player.doomed) {
-                this.sound(this.getAttribute('gameover'));
+                this.audio.play('gameover');
                 this.player.destroy();
             }
         } else if (this.currentFrame > this.warmup) {
@@ -142,6 +310,7 @@ export class Stage extends HTMLElement {
         this.drawHUD();
     }
     collisionDetection(sprite) {
+
         for (let other of this.sprites) {
             if (sprite == other) {
                 continue;
@@ -151,23 +320,41 @@ export class Stage extends HTMLElement {
             if (Math.abs(dx) < other.w && Math.abs(dy) < other.h ) {
                 /* collision detected */
                 if (sprite.type == 'player' && other.type == 'enemy' && !sprite.lives < 1) {
-                    if (!this.player.grace && sprite.lives > 1) {
-                        this.sound(this.getAttribute('blowup2'));
+                    if (this.player.shield) {
+                        this.audio.play('enemyCollision');
+                        this.getUpgrade('shield').juice -= 20;
+                        other.destroy();
+                        this.explode(other.x, other.y);
+                    } else {
+                        if (!this.player.grace) {
+                            this.audio.play('playerDeath');
+                            this.shockwave();
+                        }
+                        sprite.onCollision(this);
+                        other.destroy();
+                        this.explode(sprite.x, sprite.y, 1, 30);
+                        this.explode(other.x, other.y);
                     }
-                    sprite.onCollision(this);
+                }
+                if (sprite.type == '1up' && other.type == 'bullet') {
+                    this.audio.play('extralife');
+                    this.player.lives ++;
                     other.destroy();
-                    this.explode(sprite.x, sprite.y, 0.25, 30);
-                    this.explode(other.x, other.y);
+                    sprite.destroy();
+
                 }
                 if (sprite.type == 'enemy' && other.type == 'enemy' && !sprite.doomed && !other.doomed) {
                     this.explode(sprite.x, sprite.y);
                     this.explode(other.x, other.y);
+                    if (this.player.lives > 0) {
+                        this.audio.play('enemyCollision');
+                    }
                     other.explode();
                     sprite.explode();
                 }
-                if (sprite.type == 'enemy' && (other.type == 'bullet') && !sprite.doomed) {
-                    this.sound(this.getAttribute('blowup'));
-                    this.player.score += Math.ceil(5 - this.player.heat / 5 + this.level * 0.25) * 10;
+                if (sprite.type == 'enemy' && (other.type == 'bullet' || other.type == 'bomb') && !sprite.doomed) {
+                    this.audio.play('enemyDeath'+Math.floor(Math.random() * 3 + 1).toString());
+                    this.player.score += Math.ceil(5 - this.player.heat / 10 + this.level * 0.25) * 10;
                     this.checkForRewards();
                     this.player.hits++;
                     sprite.explode();
@@ -176,14 +363,21 @@ export class Stage extends HTMLElement {
                 }
             }
         }
-
     }
     spawnReward(rewardType) {
-        this.sound(this.getAttribute('bonus'));
+        this.audio.play('bonus');
         const reward = new Reward(this.getAttribute(rewardType), this.player);
         reward.randomizeXY(this.canvas.width, this.canvas.height);
         reward.scale = 0.2;
         reward.type = rewardType;
+        this.rewardsClaimed ++;
+        reward.bearing = ((this.rewardsClaimed % 2) * 6 + this.rewardsClaimed / 2) / 12 * Math.PI * 2 + this.currentFrame * 0.05;
+        if (rewardType === '1up' || rewardType === 'xray' || rewardType === 'powerup' || rewardType === 'upgrade') {
+            reward.ttl = 800;
+            reward.gravity = 0.998;
+        } else {
+            reward.speed = 0.05;
+        }
         reward.destroy = () => {
             this.sprites.splice(this.sprites.indexOf(reward), 1);
         }
@@ -193,7 +387,23 @@ export class Stage extends HTMLElement {
     checkForRewards() {
         for(let reward in this.rewards) {
             if (this.player.score >= reward) {
-                this.spawnReward(this.rewards[reward]);
+                if (this.rewards[reward] === "bomb" || this.rewards[reward] === "1up") {
+                    this.spawnReward(this.rewards[reward]);
+                } else {
+                    this.upgrades.push({"type": this.rewards[reward], "active": false, "juice": 100});
+                    const notify = new Sprite(this.getAttribute(this.rewards[reward]), undefined, this.canvas.width / 2, this.canvas.height / 2);
+                    notify.ttl = 20;
+                    notify.mode = "static";
+                    this.sprites.push(notify);
+                    notify.scale = 0.5;
+                    notify.alpha = 0.8;
+                    notify.onBeforeUpdate = () => {
+                        notify.scale += 0.1;
+                    }
+                    notify.destroy = () => {
+                        this.sprites.splice(this.sprites.indexOf(notify), 1);
+                    }
+                }
                 delete this.rewards[reward];
                 return;
             }
@@ -230,13 +440,16 @@ export class Stage extends HTMLElement {
                 ctx.drawImage(this.player, 10 + i * 20, 10, 20, 20);
             }
             for(let i = 0; i < 20; i++) {
-                if (i >= this.player.heat) {
-                    ctx.fillStyle = "rgba(0,255,0,0.5)";
+                if (this.player.heat > 40) {
+                    ctx.fillStyle = "rgba(255,0,0,"+((this.currentFrame % 4)/4).toString()+")"
+                } else if (this.player.heat > 20) {
+                    ctx.fillStyle = (i >= this.player.heat - 20) ? "rgba(0,255,0,0.5)" : "rgba(255,0,0,0.5)";
+                } else if (this.player.heat > 0) {
+                    ctx.fillStyle = (i >= this.player.heat) ? "rgba(0,255,255,1)" : "rgba(0,255,0,0.5)";
                 } else {
-                    ctx.fillStyle = "rgba(255,0,0,0.5)";
+                    ctx.fillStyle = "rgba(0,255,255,"+((this.currentFrame % 4)/4).toString()+")";
                 }
                 ctx.fillRect(this.canvas.width - 15 - i * 5, 10, 4, 10);
-
             }
             if (this.debug == true) {
                 ctx.fillStyle = "rgba(255,255,255,0.5)";
@@ -248,8 +461,38 @@ export class Stage extends HTMLElement {
                     " | hits: " + this.player.hits +
                     " | shots: " + this.player.shots +
                     " | ratio: " + (this.player.hits / this.player.shots * 100).toFixed(2) + "%"
-                    ,this.canvas.width / 2,this.canvas.height - 40);
+                    ,this.canvas.width / 2,this.canvas.height - 60);
             }
+        }
+        for (const i in this.upgrades) {
+            const img = new Image();
+            let u = this.upgrades[i];
+            img.src = this.getAttribute(u.type);
+            ctx.fillStyle = u.active ? "rgba(255,255,0,1)" : "rgba(255,255,0,1)";
+            ctx.fillText((parseInt(i)+1).toString(), 16 + i * 50, this.canvas.height - 43);
+            ctx.save();
+            ctx.beginPath();
+            ctx.moveTo(4 + i * 50, this.canvas.height - 6 - u.juice / 100 * 48);
+            ctx.lineTo(4 + i * 50,this.canvas.height - 6);
+            ctx.lineTo(4 + i * 50 + 48,this.canvas.height - 6);
+            ctx.lineTo(4 + i * 50 + 48,this.canvas.height - 6 - u.juice / 100 * 48);
+            ctx.closePath();
+            ctx.clip();
+            ctx.fillStyle = u.active ? "rgba(255,255,0,0.8)" : "rgba(255,255,255,0.4)";
+            ctx.fillRect(4 + i * 50, this.canvas.height - 54, 48, 48);
+            ctx.drawImage(img, 10 + i * 50, this.canvas.height - 50, 40, 40);
+            ctx.restore();
+            ctx.save();
+            ctx.fillStyle = "rgba(0,0,0,0.4)";
+            ctx.fillRect(4 + i * 50, this.canvas.height - 54, 48, 48);
+            ctx.globalAlpha = (u.juice < 25 && this.currentFrame % 6 < 3 ? 1 : 0.4);
+            ctx.drawImage(img, 10 + i * 50, this.canvas.height - 50, 40, 40);
+            ctx.restore();
+        }
+        if (this.paused) {
+            ctx.fillStyle = "rgba(255,255,255,"+Math.abs(50 - this.currentFrame % 100) / 50+")";
+            ctx.fillText("PAUSED", this.canvas.width / 2, this.canvas.height / 2 - 80);
+            ctx.fillText("PRESS P TO RESUME", this.canvas.width / 2, this.canvas.height / 2 - 60);
         }
         ctx.fillStyle = "rgba(255,255,255,0.5)";
         ctx.fillText("LEVEL " + this.level, this.canvas.width / 2 , this.canvas.height - 20);
@@ -257,14 +500,13 @@ export class Stage extends HTMLElement {
         ctx.font = "12px Arial";
         this.showScore = Math.ceil((this.showScore * 9 + this.player.score) / 10);
         ctx.fillText("" + this.showScore, this.canvas.width / 2, 20);
-
     }
     drawSprites() {
         this.rotate /= 1.1;
         this.player.rotation += this.rotate;
         for (let sprite of this.sprites) {
             this.collisionDetection(sprite);
-            sprite.animate(this.ctx);
+            sprite.animate(this.ctx, this.paused);
         }
     }
     explode(x,y,scale = 0.05, emitters = 15) {
@@ -279,7 +521,7 @@ export class Stage extends HTMLElement {
             explosion.scale = scale + Math.random() * scale / 2;
             explosion.ttl = 60;
             this.sprites.push(explosion);
-            explosion.update = (ctx) => {
+            explosion.onBeforeUpdate = (ctx) => {
                 explosion.scale += 0.01;
                 explosion.alpha /= 1.1;
             }
@@ -288,18 +530,20 @@ export class Stage extends HTMLElement {
             }
         }
     }
-    sound(src, volume = undefined) {
-        const audio = new Audio(src);
-        audio.volume = volume || 0.5;
-        audio.play();
+    stop(id) {
+        if (this.sounds[id]) {
+            this.sounds[id].pause();
+        }
     }
-    fire() {
-        const bullet = new Sprite(this.getAttribute('bullet'));
-        const idx = Math.floor(this.player.heat / 5) + 1;
-        this.sound(this.getAttribute('laser' + idx.toString()));
-        bullet.rotation = bullet.bearing = this.player.rotation;
-        bullet.dx = 14  * Math.sin(bullet.rotation);
-        bullet.dy = -14 * Math.cos(bullet.rotation);
+    fire(offset = 0, target = undefined) {
+        const idx = Math.min(Math.floor(this.player.heat / 8) + 1, 6);
+        this.audio.play('laser' + idx.toString());
+        const bullet = new Sprite(this.getAttribute('bullet'), target);
+        if (!target) {
+            bullet.rotation = bullet.bearing = this.player.rotation;
+        }
+        bullet.dx = 14  * Math.sin(bullet.rotation + offset);
+        bullet.dy = -14 * Math.cos(bullet.rotation + offset);
         bullet.x = this.player.x + bullet.dx * 3;
         bullet.y = this.player.y + bullet.dy * 3;
         bullet.speed = 20;

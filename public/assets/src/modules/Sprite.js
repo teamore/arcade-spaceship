@@ -15,6 +15,7 @@ export default class Sprite extends Image {
     alpha = 1;
     doomed = false;
     suspend = false;
+    pushback = 0;
     constructor(src, target = undefined, x = undefined, y = undefined) {
         super();
         if (x === undefined || y === undefined) {
@@ -24,6 +25,10 @@ export default class Sprite extends Image {
         }
         this.setTarget(target);
         this.src = src;
+        this.init();
+    }
+    init() {
+
     }
     setXY(x, y) {
         this.x = x;
@@ -38,45 +43,76 @@ export default class Sprite extends Image {
     destroy() {
         this.doomed = true;
     }
-    orientate() {
-        if (this.target) {
-            const dx = this.target.x - this.x;
-            const dy = this.target.y - this.y;
+    orientate(x = undefined, y = undefined) {
+        x = x || this.target?.x;
+        y = y || this.target?.y;
+        if (x !== undefined && y !== undefined) {
+            const dx = x - this.x;
+            const dy = y - this.y;
             this.bearing = Math.atan2(dy, dx) + Math.PI / 2;
         }
     }
-    animate(ctx) {
-        if (this.suspend) {
-            this.suspend--;
-            return;
+    animate(ctx, paused = false) {
+        if (paused === false) {
+            if (this.suspend) {
+                this.suspend--;
+                return;
+            }
+            this.update(ctx);
         }
-        this.update(ctx);
         this.draw(ctx);
     }
-    update() {
-        if (!this.doomed && this.mode === "follow" && !(this.target.type === "player" && this.target.lives < 1)) {
-            this.orientate();
-        }
-        this.x += Math.cos(this.bearing - Math.PI / 2) * (this.speed);
-        this.y += Math.sin(this.bearing - Math.PI / 2) * (this.speed);
+    onBeforeUpdate() {
+
     }
-    draw(ctx) {
+    update() {
+        this.onBeforeUpdate();
         this.frame ++;
-        this.w = this.width * this.scale;
-        this.h = this.height * this.scale;
         if (this.ttl !== undefined) {
             this.ttl --;
             if (this.ttl < 0) {
-                this.destroy();
-                return;
+                this.alpha /= 1.1;
+                if (this.ttl < -40 || this.alpha < 0.01) {
+                    this.destroy();
+                    return;
+                }
             }
         }
+        this.pushback /= 1.1;
+        if (!this.doomed && this.mode === "follow" && !(this.target.type === "player" && this.target.lives < 1)) {
+            this.orientate();
+        }
+        if (this.mode === "orbit" && this.target) {
+            this.radius = this.radius / this.gravity || 1;
+            this.bearing += this.speed;
+            this.x = this.target.x + Math.cos(this.bearing) * (this.radius || 100);
+            this.y = this.target.y + Math.sin(this.bearing) * (this.radius || 100);
+        } else {
+            this.x += Math.cos(this.bearing - Math.PI / 2) * (this.speed || 0 - this.pushback || 0);
+            this.y += Math.sin(this.bearing - Math.PI / 2) * (this.speed || 0 - this.pushback || 0);
+        }
+    }
+    distance(x,y) {
+        let deltaX = this.x - x;
+        let deltaY = this.y - y;
+
+        let distance = Math.sqrt(deltaX * deltaX + deltaY * deltaY);
+
+        return distance;
+    }
+    draw(ctx) {
+        this.w = this.width * this.scale;
+        this.h = this.height * this.scale;
         ctx.save();
         ctx.translate(this.x, this.y);
         ctx.rotate(this.rotation);
         ctx.globalAlpha = this.alpha;
         // Draw the loaded SVG onto the canvas
-        ctx.drawImage(this, - this.w * this.cx, - this.h * this.cy, this.w, this.h);
+        try {
+            ctx.drawImage(this, - this.w * this.cx, - this.h * this.cy, this.w, this.h);
+        } catch (e) {
+            console.error(e);
+        }
         ctx.restore();
     }
     randomizeXY(width, height) {

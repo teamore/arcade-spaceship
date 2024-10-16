@@ -21,17 +21,22 @@ export default class Player extends Sprite {
         this.rotation = 0;
         this.speed = 0;
         this.doomed = false;
+        this.shield = false;
     }
     update() {
-
+        this.frame ++;
     }
     draw(ctx) {
         if (this.lives < 1) {
             return;
         }
+        this.alpha = 1;
         if (this.grace > 0) {
             this.grace --;
             this.alpha = this.grace % 5 ? 0 : 1;
+        }
+        if (this.shield) {
+            this.alpha = this.frame % 5 ? 0 : 1;
         }
         super.draw(ctx);
         ctx.globalAlpha = 1;
