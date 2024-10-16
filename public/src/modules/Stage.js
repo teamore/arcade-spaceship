@@ -3,7 +3,10 @@ import Enemy from "./Enemy.js";
 import Player from "./Player.js";
 import Reward from "./Reward.js";
 import AudioDesk from "./AudioDesk.js";
+import Config from "./Config.js";
+import FontLoader from './Fontloader.js';
 export class Stage extends HTMLElement {
+    config= new Config();
     currentFrame = 0;
     warmup = 150;
     keyMap = {};
@@ -19,22 +22,6 @@ export class Stage extends HTMLElement {
     debug = false;
     fps = 60;
     upgrades = [];
-    rewardSchedule = {
-        250: "bomb", 500: "bomb", 1000: "bomb", 1500: "bomb", 2000: "shield",
-        2500: "bomb", 3000: "bomb", 3500: "bomb", 4000: "laser",
-        4500: "bomb", 5000: "1up", 6000: "bomb", 7000: "supercharge",
-        8000: "bomb", 9000: "bomb", 10000: "1up", 11000: "xray",
-        12000: "laser", 13000: "bomb", 14000: "shield", 15000: "1up",
-        16000: "laser", 17000: "bomb", 18000: "supercharge", 19000: "xray",
-        20000: "1up", 21000: "laser", 22000: "bomb", 23000: "shield", 25000: "1up",
-        26000: "laser", 27000: "bomb", 28000: "supercharge", 29000: "shield",
-        30000: "1up", 31000: "xray", 32000: "bomb", 33000: "shield", 35000: "supercharge",
-        36000: "laser", 37000: "bomb", 38000: "supercharge", 39000: "shield",
-        40000: "1up", 41000: "xray", 42000: "bomb", 43000: "shield", 45000: "supercharge",
-        46000: "laser", 47000: "bomb", 48000: "supercharge", 49000: "shield",
-        50000: "1up", 51000: "xray", 52000: "bomb", 53000: "shield", 55000: "supercharge"
-
-    }
     rewardsClaimed = 0;
     constructor() {
         super();
@@ -61,32 +48,104 @@ export class Stage extends HTMLElement {
         this.init();
     }
     onKey(e) {
-        if (e.type == 'keydown') {
-            if (e.key == "p") {
-                if (this.paused) {
-                    this.currentFrame = this.paused;
-                    this.paused = false;
-                } else {
-                    this.paused = this.currentFrame;
-                }
-            }
-            if (["1","2","3","4","5","6","7","8","9"].includes(e.key)) {
-                let upgrade = this.upgrades[e.key - 1];
-                if (upgrade) {
-                    upgrade.active = !upgrade.active;
-                }
-                if (upgrade.type == "shield") {
-                    this.player.shield = upgrade.active;
-                }
+        if (e.key == "p" && e.type == 'keydown') {
+            if (this.paused) {
+                this.currentFrame = this.paused;
+                this.paused = false;
+            } else {
+                this.paused = this.currentFrame;
             }
         }
         if (!this.paused) {
+            if (e.type == 'keydown') {
+                if (["1","2","3","4","5","6","7","8","9"].includes(e.key)) {
+                    let u = this.toggleUpgrade(e.key - 1);
+                }
+            }
             this.keyMap[e.key] = e.type == 'keydown';
         }
     }
     getUpgrade(upgrade) {
         return this.upgrades.filter(u => u.type == upgrade && u.active)[0];
     }
+    toggleUpgrade(upgradeIdx, state = undefined) {
+        let u = this.upgrades[upgradeIdx];
+        u.active = (state === undefined) ? !u.active : state;
+        this.audio.play(u.active ?'upgradeOn' : 'upgradeOff');
+        if (u.type == "shield") {
+            if (u.active) {
+                let overlay = new Sprite(this.config.get("sprites.shieldOverlay"), this.player, this.player.x, this.player.y);
+                this.sprites.push(overlay);
+                overlay.type = u.type;
+                overlay.scale = 1.1;
+                overlay.collisionFactorX = 0.5;
+                overlay.collisionFactorY = 0.5;
+                overlay.wobbleFrame = 0;
+                overlay.onBeforeUpdate = () => {
+                    overlay.wobble /= 1.1;
+                    overlay.wobbleFrame ++;
+                    overlay.scale = 1.1 + Math.sin(overlay.wobbleFrame / 40) / 10 * (- overlay.wobble || 1);
+                }
+                overlay.destroy = () => {
+                    this.killSprite(overlay);
+                    this.player.shield = undefined;
+                }
+                this.player.shield = overlay;
+
+            } else {
+                this.player.shield.destroy();
+            }
+        }
+        if (u.type == "blackhole") {
+            if (u.active) {
+                let overlay = new Sprite(this.config.get("sprites.blackholeOverlay"), this.player, this.player.x, this.player.y);
+                this.sprites.push(overlay);
+                overlay.type = u.type;
+                overlay.speed = 0.03;
+                overlay.mode = "orbit";
+                overlay.gravity = 1;
+                overlay.radius = 150;
+                overlay.scale = 1;
+                overlay.collisionFactorX = 1;
+                overlay.collisionFactorY = 1;
+                u.overlay = overlay;
+                overlay.onBeforeUpdate = () => {
+                    overlay.rotation -= 0.5;
+                }
+                overlay.destroy = () => {
+                    this.killSprite(overlay);
+                }
+            } else {
+                u.overlay.destroy();
+            }
+
+        }
+        if (u.type == "stealth") {
+
+        }
+        return u;
+    }
+    consumeUpgrade(upgrade, useJuice = 0.1) {
+        const u = this.getUpgrade(upgrade);
+        if (!u?.active) {
+            return;
+        }
+        u.juice -= useJuice;
+        if (u.juice <= 0) {
+            if (u.overlay) {
+                u.overlay.destroy();
+            }
+            this.upgrades.splice(this.upgrades.indexOf(u), 1);
+            this.audio.play('upgradeDepleted');
+            return false;
+        }
+        return u;
+    }
+    killUpgrade(upgrade) {
+
+    }
+
+
     interact() {
         if (this.player.lives < 1) {
             if (this.keyMap["Enter"]) {
@@ -113,12 +172,7 @@ export class Stage extends HTMLElement {
                     this.player.heat = 0;
                 }
                 this.player.heat += 2;
-                const laserUpgrade = this.getUpgrade("laser");
-                if (laserUpgrade?.active) {
-                    laserUpgrade.juice -= 1;
-                    if (laserUpgrade.juice < 1) {
-                        this.upgrades.splice(this.upgrades.indexOf(laserUpgrade), 1);
-                    }
+                if (this.consumeUpgrade('laser', 1)) {
                     this.fire(-4);
                     this.fire(4);
                 }
@@ -137,38 +191,28 @@ export class Stage extends HTMLElement {
     connectedCallback() {
         window.addEventListener("keydown", (e) => {this.onKey(e);});
         window.addEventListener("keyup", (e) => {this.onKey(e);});
+        this.loadData();
+        //this.init();
+        //this.run();
+    }
+    loadData() {
+        this.config.onLoad = (json) => {
+            this.audio.loadSounds(this.config.get('sounds'));
+            this.fontLoader = new FontLoader('../assets/fonts/GamePlayed.ttf', 'Arcade');
+            this.dataLoaded();
+        }
+        this.config.load("../etc/config.json");
+    }
+    dataLoaded() {
         this.init();
         this.run();
     }
 
     init() {
         this.sprites = [];
-        this.audio.loadSounds(
-            {
-                "enemyCollision": this.getAttribute('enemyCollision'),
-                "playerDeath": this.getAttribute('playerDeath'),
-                "enemyDeath1": this.getAttribute('enemyDeath1'),
-                "enemyDeath2": this.getAttribute('enemyDeath2'),
-                "enemyDeath3": this.getAttribute('enemyDeath3'),
-                "bonus": this.getAttribute('bonus'),
-                "laser1": this.getAttribute('laser1'),
-                "laser2": this.getAttribute('laser2'),
-                "laser3": this.getAttribute('laser3'),
-                "laser4": this.getAttribute('laser4'),
-                "laser5": this.getAttribute('laser5'),
-                "laser6": this.getAttribute('laser6'),
-                "pushback": this.getAttribute('pushback'),
-                "levelup": this.getAttribute('levelup'),
-                "extralife": this.getAttribute('extralife'),
-                "gameover": this.getAttribute('gameover'),
-                "powerup":  this.getAttribute('powerup'),
-                "charged": this.getAttribute('charged'),
-                "charged2": this.getAttribute('charged2'),
-            }
-        );
-        this.rewards = {...this.rewardSchedule};
+        this.rewards = {...this.config.get('rewards')};
         this.levelInit();
-        this.player = new Player(this.getAttribute('player'));
+        this.player = new Player(this.config.get('sprites.player'));
         this.player.x = this.canvas.width / 2;
         this.player.y = this.canvas.height / 2;
         this.player.cy = 0.7; // center of rotation
@@ -176,7 +220,7 @@ export class Stage extends HTMLElement {
     }
     levelInit(level = undefined) {
         this.level = level || this.level + 1;
-        const src = this.getAttribute('background-level'+this.level) || this.getAttribute('background');
+        const src = this.config.get('backgrounds.background-level'+this.level) || this.config.get('backgrounds.background');
         this.background = new Sprite(src);
         this.background.x = this.canvas.width / 2;
         this.background.y = this.canvas.height / 2;
@@ -193,7 +237,7 @@ export class Stage extends HTMLElement {
         this.pushEnemies();
     }
     shockwave() {
-        const whoosh = new Sprite(this.getAttribute('shockwave'));
+        const whoosh = new Sprite(this.config.get('sprites.shockwave'));
         whoosh.x = this.canvas.width / 2;
         whoosh.y = this.canvas.height / 2;
         whoosh.scale = 0.2;
@@ -212,7 +256,7 @@ export class Stage extends HTMLElement {
                     sprite.explode();
                     this.explode(sprite.x, sprite.y);
                 } else {
-                    sprite.pushback = 10 - distance / 50;
+                    sprite.pushback = 15 - distance / 50;
                 }
             }
         }
@@ -231,7 +275,7 @@ export class Stage extends HTMLElement {
     }
     spawnEnemy() {
         /* spawn enemy sprite */
-        const enemy = new Enemy(this.getAttribute('enemy'), this.player);
+        const enemy = new Enemy(this.config.get('sprites.enemy'), this.player);
         enemy.randomizeXY(this.canvas.width, this.canvas.height);
         enemy.scale = 0.15;
         this.enemies ++;
@@ -248,21 +292,19 @@ export class Stage extends HTMLElement {
         setTimeout(() => {
             requestAnimationFrame(() => {this.run();});
         }, 1000 / this.fps);
-        const shield = this.getUpgrade('shield');
-        if (shield?.active) {
-            shield.juice -= 0.1;
-            if (shield.juice < 1) {
-                this.upgrades.splice(this.upgrades.indexOf(shield), 1);
-                this.player.shield = false;
-            }
-        }
         if (this.paused) {
             this.drawSprites();
             this.drawHUD();
             return;
         }
-        const xray = this.getUpgrade("xray");
-        if (xray?.active) {
+        if (this.consumeUpgrade('shield') === false && this.player.shield) {
+            this.player.shield.destroy();
+            this.player.shield = undefined;
+        }
+        if (this.consumeUpgrade('blackhole') === false) {
+            this.getUpgrade('blackhole').overlay.destroy();
+        }
+        if (this.consumeUpgrade('xray')) {
             let closestDistance = 1000;
             let closestEnemy = undefined;
             for (let sprite of this.sprites) {
@@ -274,10 +316,6 @@ export class Stage extends HTMLElement {
                     }
                 }
             }
-            xray.juice -= 0.1;
-            if (xray.juice < 1) {
-                this.upgrades.splice(this.upgrades.indexOf(xray), 1);
-            }
             if (closestEnemy) {
                 this.player.orientate(closestEnemy.x, closestEnemy.y);
                 this.player.rotation = (this.player.rotation + this.player.bearing) / 2;
@@ -287,12 +325,9 @@ export class Stage extends HTMLElement {
         this.cleanup();
         this.interact();
         this.player.heat = this.player.heat - 0.2;
-        const supercharge = this.getUpgrade("supercharge");
-        if (supercharge?.active && this.player.heat > 0) {
-            this.player.heat -= 0.4;
-            supercharge.juice -= 0.4;
-            if (supercharge.juice < 1) {
-                this.upgrades.splice(this.upgrades.indexOf(supercharge), 1);
+        if (this.player.heat > 0) {
+            if (this.consumeUpgrade('supercharge', 0.2)) {
+                this.player.heat -= 0.2;
             }
         }
         if (this.player.heat > 18.8 && this.player.heat <= 20) {
@@ -318,31 +353,50 @@ export class Stage extends HTMLElement {
         this.drawHUD();
     }
     collisionDetection(sprite) {
-
         for (let other of this.sprites) {
             if (sprite == other) {
                 continue;
             }
             const dx = sprite.x - other.x;
             const dy = sprite.y - other.y;
-            if (Math.abs(dx) < other.w && Math.abs(dy) < other.h ) {
+            if (Math.abs(dx) < other.w * (other.collisionFactorX || 1) && Math.abs(dy) < other.h * (other.collisionFactorY || 1)) {
                 /* collision detected */
-                if (sprite.type == 'player' && other.type == 'enemy' && !sprite.lives < 1) {
-                    if (this.player.shield) {
+                if (sprite.type == 'enemy' && other.type == 'shield') {
+                    if (this.consumeUpgrade('shield', 20)) {
                         this.audio.play('enemyCollision');
-                        this.getUpgrade('shield').juice -= 20;
-                        other.destroy();
-                        this.explode(other.x, other.y);
-                    } else {
-                        if (!this.player.grace) {
-                            this.audio.play('playerDeath');
-                            this.shockwave();
-                        }
-                        sprite.onCollision(this);
-                        other.destroy();
-                        this.explode(sprite.x, sprite.y, 1, 30);
-                        this.explode(other.x, other.y);
+                        other.wobble = 5;
+                        other.wobbleFrame = 0;
+                        sprite.destroy();
+                        this.explode(sprite.x, sprite.y);
                     }
+                }
+                if (sprite.type == "enemy" && other.type == 'blackhole') {
+                    let dist = sprite.distance(other.x, other.y);
+                    sprite.target = other;
+                    if (dist < 50) {
+                        sprite.mode = "orbit";
+                        sprite.speed = 0.1;
+                        sprite.radius = dist;
+                        sprite.gravity = 1.01;
+                        sprite.doomed = true;
+                        if (dist < 20) {
+                            this.audio.play('blackhole');
+                            sprite.destroy();
+                        }
+                    }
+                }
+                if (sprite.type == 'player' && other.type == 'enemy' && !other.doomed && !sprite.lives < 1) {
+                    if (this.player.shield) {
+                        this.player.shield?.destroy();
+                    }
+                    if (!this.player.grace) {
+                        this.audio.play('playerDeath');
+                        this.shockwave();
+                    }
+                    sprite.onCollision(this);
+                    other.destroy();
+                    this.explode(sprite.x, sprite.y, 1, 30);
+                    this.explode(other.x, other.y);
                 }
                 if (sprite.type == '1up' && other.type == 'bullet') {
                     this.audio.play('extralife');
@@ -374,7 +428,7 @@ export class Stage extends HTMLElement {
     }
     spawnReward(rewardType) {
         this.audio.play('bonus');
-        const reward = new Reward(this.getAttribute(rewardType), this.player);
+        const reward = new Reward(this.config.getAll().sprites[rewardType], this.player);
         reward.randomizeXY(this.canvas.width, this.canvas.height);
         reward.scale = 0.2;
         reward.type = rewardType;
@@ -399,7 +453,7 @@ export class Stage extends HTMLElement {
                     this.spawnReward(this.rewards[reward]);
                 } else {
                     this.upgrades.push({"type": this.rewards[reward], "active": false, "juice": 100});
-                    const notify = new Sprite(this.getAttribute(this.rewards[reward]), undefined, this.canvas.width / 2, this.canvas.height / 2);
+                    const notify = new Sprite(this.config.get('sprites.'+this.rewards[reward]), undefined, this.canvas.width / 2, this.canvas.height / 2);
                     notify.ttl = 20;
                     notify.mode = "static";
                     this.sprites.push(notify);
@@ -426,22 +480,26 @@ export class Stage extends HTMLElement {
     }
     drawHUD() {
         const ctx = this.ctx;
-        ctx.font = "12px Helvetica";
+        ctx.font = "24px Arcade";
+        ctx.lineWidth = 10;
+        ctx.strokeStyle = "rgb(0,0,0,0.75)"
+        ctx.fillStyle = "rgb(255,255,255,1)"
 
         ctx.textAlign = "center";
         if (this.player.lives < 1) {
             ctx.fillStyle = "rgba(255,255,255,"+Math.abs(50 - this.currentFrame % 100) / 50+")";
-            ctx.fillText("GAME OVER", this.canvas.width / 2, this.canvas.height / 2);
-            ctx.fillText("INSERT COIN (PRESS RETURN)", this.canvas.width / 2, this.canvas.height / 2 + 20);
+            this.writeText("GAME OVER", this.canvas.width / 2, this.canvas.height / 2);
+            this.writeText("INSERT COIN", this.canvas.width / 2, this.canvas.height / 2 + 25);
+            this.writeText("(PRESS RETURN)", this.canvas.width / 2, this.canvas.height / 2 + 50);
         } else if (this.currentFrame < this.warmup) {
             ctx.fillStyle = "rgba(255,255,255,"+Math.abs(50 - this.currentFrame % 100) / 50+")";
-            ctx.fillText("GET READY", this.canvas.width / 2, this.canvas.height / 2 + 50);
+            this.writeText("GET READY", this.canvas.width / 2, this.canvas.height / 2 + 50);
             const alpha = (this.warmup - this.currentFrame > 50) ? 1 : (this.warmup - this.currentFrame) / 100;
             ctx.fillStyle = "rgba(255,255,255,"+alpha+")";
             if (this.level == 1) {
-                ctx.fillText("Use arrow keys to move, space to fire", this.canvas.width / 2, this.canvas.height / 2 + 80);
+                this.writeText("Use Arrow keys and space to fire", this.canvas.width / 2, this.canvas.height / 2 + 75);
             }
-            ctx.fillText("LEVEL " + this.level, this.canvas.width / 2, this.canvas.height / 2 - 50);
+            this.writeText("LEVEL " + this.level, this.canvas.width / 2, this.canvas.height / 2 - 50);
         } else {
             ctx.globalAlpha = (ctx.globalAlpha * 10 + 1) / 11;
             for(let i = 0; i < this.player.lives; i++) {
@@ -457,7 +515,7 @@ export class Stage extends HTMLElement {
                 } else {
                     ctx.fillStyle = "rgba(0,255,255,"+((this.currentFrame % 4)/4).toString()+")";
                 }
-                ctx.fillRect(this.canvas.width - 15 - i * 5, 10, 4, 10);
+                ctx.fillRect(this.canvas.width - 15 - i * 5, 10, 4, 20);
             }
             if (this.debug == true) {
                 ctx.fillStyle = "rgba(255,255,255,0.5)";
@@ -475,9 +533,10 @@ export class Stage extends HTMLElement {
         for (const i in this.upgrades) {
             const img = new Image();
             let u = this.upgrades[i];
-            img.src = this.getAttribute(u.type);
-            ctx.fillStyle = u.active ? "rgba(255,255,0,1)" : "rgba(255,255,0,1)";
-            ctx.fillText((parseInt(i)+1).toString(), 16 + i * 50, this.canvas.height - 43);
+            img.src = this.config.getAll().sprites[u.type];
+            ctx.fillStyle = u.active ? "rgba(255,255,0,1)" : "rgba(255,255,255,1)";
+            ctx.font = "12px Arcade";
+            ctx.fillText((parseInt(i)+1).toString(), 12 + i * 50, this.canvas.height - 42);
             ctx.save();
             ctx.beginPath();
             ctx.moveTo(4 + i * 50, this.canvas.height - 6 - u.juice / 100 * 48);
@@ -486,28 +545,45 @@ export class Stage extends HTMLElement {
             ctx.lineTo(4 + i * 50 + 48,this.canvas.height - 6 - u.juice / 100 * 48);
             ctx.closePath();
             ctx.clip();
-            ctx.fillStyle = u.active ? "rgba(255,255,0,0.8)" : "rgba(255,255,255,0.4)";
+            ctx.fillStyle = u.active ? this.getPowerGradient(u.juice) : "rgba(255,255,255,0.4)";
             ctx.fillRect(4 + i * 50, this.canvas.height - 54, 48, 48);
-            ctx.drawImage(img, 10 + i * 50, this.canvas.height - 50, 40, 40);
+            ctx.drawImage(img, 8 + i * 50, this.canvas.height - 50, 40, 40);
             ctx.restore();
             ctx.save();
             ctx.fillStyle = "rgba(0,0,0,0.4)";
             ctx.fillRect(4 + i * 50, this.canvas.height - 54, 48, 48);
             ctx.globalAlpha = (u.juice < 25 && this.currentFrame % 6 < 3 ? 1 : 0.4);
-            ctx.drawImage(img, 10 + i * 50, this.canvas.height - 50, 40, 40);
+            ctx.drawImage(img, 8 + i * 50, this.canvas.height - 50, 40, 40);
             ctx.restore();
         }
+        ctx.font = "24px Arcade";
+        ctx.fillStyle = "rgb(255,255,255,1)"
+        this.writeText("LEVEL " + this.level, this.canvas.width / 2 , this.canvas.height - 20);
+        this.showScore = Math.ceil((this.showScore * 9 + this.player.score) / 10);
+        ctx.strokeStyle = "rgb(0,0,0,1)"
+        this.writeText("" + this.showScore, this.canvas.width / 2, 30);
         if (this.paused) {
             ctx.fillStyle = "rgba(255,255,255,"+Math.abs(50 - this.currentFrame % 100) / 50+")";
             ctx.fillText("PAUSED", this.canvas.width / 2, this.canvas.height / 2 - 80);
             ctx.fillText("PRESS P TO RESUME", this.canvas.width / 2, this.canvas.height / 2 - 60);
         }
-        ctx.fillStyle = "rgba(255,255,255,0.5)";
-        ctx.fillText("LEVEL " + this.level, this.canvas.width / 2 , this.canvas.height - 20);
-        ctx.fillStyle = "rgba(255,255,255,1)";
-        ctx.font = "12px Arial";
-        this.showScore = Math.ceil((this.showScore * 9 + this.player.score) / 10);
-        ctx.fillText("" + this.showScore, this.canvas.width / 2, 20);
+    }
+    getPowerGradient(percentage) {
+        return "rgba("+Math.min(255, 300 - percentage * 2)+","+Math.min(255, percentage * 8)+",50,1)";
+    }
+    writeText(txt, x, y, fillStyle = undefined, strokeStyle = undefined, lineWidth = undefined) {
+        if (lineWidth !== undefined) {
+            this.ctx.lineWidth = 10;
+        }
+        if (strokeStyle !== undefined) {
+            this.ctx.strokeStyle = strokeStyle;
+        }
+        this.ctx.strokeText(txt, x, y);
+        if (fillStyle !== undefined) {
+            this.ctx.fillStyle = fillStyle;
+        }
+        this.ctx.fillText(txt, x, y);
+
     }
     drawSprites() {
         this.rotate /= 1.1;
@@ -517,10 +593,13 @@ export class Stage extends HTMLElement {
             sprite.animate(this.ctx, this.paused);
         }
     }
+    killSprite(id) {
+        this.sprites.splice(this.sprites.indexOf(id), 1);
+    }
     explode(x,y,scale = 0.05, emitters = 15) {
         for (let i = 0; i < emitters; i++) {
             const idx = Math.floor(Math.random() * 4)+1;
-            const explosion = new Sprite(this.getAttribute('explosion'+idx.toString()));
+            const explosion = new Sprite(this.config.get('sprites.explosion'+idx.toString()));
             explosion.suspend = Math.floor(Math.random() * 30);
             explosion.x = x + Math.random() * 30 - 15;
             explosion.y = y + Math.random() * 30 - 15;
@@ -546,7 +625,7 @@ export class Stage extends HTMLElement {
     fire(offset = 0, target = undefined) {
         const idx = Math.min(Math.floor(this.player.heat / 8) + 1, 6);
         this.audio.play('laser' + idx.toString());
-        const bullet = new Sprite(this.getAttribute('bullet'), target);
+        const bullet = new Sprite(this.config.get('sprites.bullet'), target);
         if (!target) {
             bullet.rotation = bullet.bearing = this.player.rotation;
         }
