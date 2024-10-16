@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg id="Ebene_2" data-name="Ebene 2" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 144 144">
+  <defs>
+    <style>
+      .cls-1 {
+        fill: url(#Unbenannter_Verlauf_499);
+      }
+    </style>
+    <radialGradient id="Unbenannter_Verlauf_499" data-name="Unbenannter Verlauf 499" cx="72" cy="72" fx="72" fy="72" r="72" gradientUnits="userSpaceOnUse">
+      <stop offset=".62" stop-color="#bf007a" stop-opacity="0"/>
+      <stop offset="1" stop-color="#3fd1ff" stop-opacity=".84"/>
+    </radialGradient>
+  </defs>
+  <g id="Woosh">
+    <circle class="cls-1" cx="72" cy="72" r="72"/>
+  </g>
+</svg>
