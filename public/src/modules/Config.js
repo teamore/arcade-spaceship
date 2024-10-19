@@ -1,17 +1,38 @@
 export default class Config {
     payload;
+    src = undefined;
     constructor(src = undefined) {
         if (src !== undefined) {
             this.load(src);
         }
     }
     load(src) {
+        this.src = src;
         fetch(src)
             .then((response) => response.json())
             .then((json) => {
                 this.payload = json;
                 this.onLoad(json);
             });
+    }
+    save() {
+        if (this.src !== undefined) {
+            fetch("save_scores.php", {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(this.payload),
+            })
+                .then((response) => response.json())
+                .then((json) => {
+                    this.onSave(json);
+                });
+        }
+
+    }
+    onSave(json) {
+
     }
     onLoad(json) {
 
