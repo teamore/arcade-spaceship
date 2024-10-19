@@ -1,20 +1,8 @@
-# Use the official Node.js 14 image as the base image
-FROM node:latest AS spaceship
+# Verwende ein PHP-Apache-Image
+FROM php:8.2-apache
 
-# Set the working directory inside the container
-WORKDIR /app
+# Setze das Arbeitsverzeichnis (wo Apache nach Dateien sucht)
+WORKDIR /var/www/html
 
-COPY . .
-
-# Install dependencies
-# RUN apt-get update && apt-get install -y git yarn
-# RUN npm install -g yarn
-# RUN yarn init -y
-RUN yarn add express
-
-RUN yarn install
-# Expose port 3000
-EXPOSE 3000
-
-# Set the command to run the node server
-CMD ["node", "app.js"]
+# Exponiere den Port 80 (HTTP)
+EXPOSE 80
