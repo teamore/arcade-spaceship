@@ -18,8 +18,8 @@ export class Stage extends HTMLElement {
     sprites = [];
     audio = new AudioDesk();
     rotate = 0;
-    level = 10;
-    score = 5000;
+    level = 0;
+    score = 0;
     enemies = 0;
     background;
     showScore = 0;
@@ -43,8 +43,8 @@ export class Stage extends HTMLElement {
     restart() {
         this.currentFrame = 0;
         this.currentScene = 'play';
-        this.level = 10;
-        this.player.lives = 1;
+        this.level = 0;
+        this.player.lives = 3;
         this.player.score = 5000;
         this.enemies = 0;
         this.warmup = 150;
@@ -116,6 +116,9 @@ export class Stage extends HTMLElement {
     }
     toggleUpgrade(upgradeIdx, state = undefined) {
         let u = this.upgrades[upgradeIdx];
+        if (!u) {
+            return;
+        }
         u.active = (state === undefined) ? !u.active : state;
         this.audio.play(u.active ?'upgradeOn' : 'upgradeOff');
         if (u.type == "shield") {
@@ -146,8 +149,15 @@ export class Stage extends HTMLElement {
             if (u.active) {
                 let overlay = new BlackHole(this.config.get("sprites.blackholeOverlay"), this.player, this.player.x, this.player.y);
                 this.sprites.push(overlay);
+                overlay.zIndex = -99;
+                overlay.victims = this.sprites;
                 u.destroy = () => {
                     this.killSprite(overlay);
+                }
+                overlay.onDestroyVictim = (sprite) => {
+                    this.addScore();
+                    this.consumeUpgrade('blackhole', 0.5);
+                    this.explode(sprite.x, sprite.y, 0.1, 2);
                 }
             } else {
                 u.destroy();
@@ -166,7 +176,7 @@ export class Stage extends HTMLElement {
         }
         u.juice -= useJuice;
         if (u.juice <= 0) {
-            if (u.destroy()) {
+            if (u.destroy) {
                 u.destroy();
             }
             this.upgrades.splice(this.upgrades.indexOf(u), 1);
@@ -230,7 +240,7 @@ export class Stage extends HTMLElement {
             this.dataLoaded();
         }
         this.scores.onLoad = (json) => {
-            console.log(this.scores.getAll());
+
         }
         this.config.load("../etc/config.json");
         this.scores.load("../etc/scores.json");
@@ -254,6 +264,7 @@ export class Stage extends HTMLElement {
         this.level = level || this.level + 1;
         const src = this.config.get('backgrounds.background-level'+this.level) || this.config.get('backgrounds.background');
         this.background = new Sprite(src);
+        this.background.zIndex = -100;
         this.background.x = this.canvas.width / 2;
         this.background.y = this.canvas.height / 2;
         this.background.speed = 0;
@@ -373,6 +384,7 @@ export class Stage extends HTMLElement {
             }
             return;
         }
+        this.consumeUpgrade('blackhole', 0.05);
         if (this.consumeUpgrade('xray')) {
             let closestDistance = 1000;
             let closestEnemy = undefined;
@@ -442,9 +454,11 @@ export class Stage extends HTMLElement {
                         other.wobble = 5;
                         other.wobbleFrame = 0;
                         sprite.destroy();
+                        this.addScore(0.5);
                         this.explode(sprite.x, sprite.y);
                     }
                 }
+                /*
                 if (sprite.type == "enemy" && other.type == 'blackhole') {
                     let dist = sprite.distance(other.x, other.y);
                     sprite.distraction = other;
@@ -460,10 +474,8 @@ export class Stage extends HTMLElement {
                         }
                     }
                 }
+                */
                 if (sprite.type == 'player' && other.type == 'enemy' && !other.doomed && !sprite.lives < 1) {
-                    if (this.player.shield) {
-                        this.player.shield?.destroy();
-                    }
                     if (!this.player.grace) {
                         this.audio.play('playerDeath');
                         this.shockwave();
@@ -484,6 +496,7 @@ export class Stage extends HTMLElement {
                     this.explode(sprite.x, sprite.y);
                     this.explode(other.x, other.y);
                     if (this.player.lives > 0) {
+                        this.addScore(0.5);
                         this.audio.play('enemyCollision');
                     }
                     other.explode();
@@ -491,7 +504,7 @@ export class Stage extends HTMLElement {
                 }
                 if (sprite.type == 'enemy' && (other.type == 'bullet' || other.type == 'bomb') && !sprite.doomed) {
                     this.audio.play('enemyDeath'+Math.floor(Math.random() * 3 + 1).toString());
-                    this.player.score += Math.ceil(5 - this.player.heat / 10 + this.level * 0.25) * 10;
+                    this.addScore();
                     this.checkForRewards();
                     this.player.hits++;
                     sprite.explode();
@@ -501,22 +514,25 @@ export class Stage extends HTMLElement {
             }
         }
     }
+    addScore(factor = 1) {
+        this.player.score += Math.ceil(5 - this.player.heat / 10 + this.level * 0.25) * 10 * factor;
+    }
     spawnReward(rewardType) {
         this.audio.play('bonus');
-        const reward = new Reward(this.config.getAll().sprites[rewardType], this.player);
+        const reward = new Reward(this.config.getAll().icons[rewardType], this.player);
         reward.randomizeXY(this.canvas.width, this.canvas.height);
         reward.scale = 0.2;
         reward.type = rewardType;
         this.rewardsClaimed ++;
         reward.bearing = ((this.rewardsClaimed % 2) * 6 + this.rewardsClaimed / 2) / 12 * Math.PI * 2 + this.currentFrame * 0.05;
-        if (rewardType === '1up' || rewardType === 'xray' || rewardType === 'powerup' || rewardType === 'upgrade') {
+        if (rewardType === '1up') {
             reward.ttl = 800;
             reward.gravity = 0.998;
         } else {
             reward.speed = 0.05;
         }
         reward.destroy = () => {
-            this.sprites.splice(this.sprites.indexOf(reward), 1);
+            this.killSprite(reward);
         }
         this.sprites.push(reward);
 
@@ -527,8 +543,9 @@ export class Stage extends HTMLElement {
                 if (this.rewards[reward] === "bomb" || this.rewards[reward] === "1up") {
                     this.spawnReward(this.rewards[reward]);
                 } else {
-                    this.upgrades.push({"type": this.rewards[reward], "active": false, "juice": 100});
-                    const notify = new Sprite(this.config.get('sprites.'+this.rewards[reward]), undefined, this.canvas.width / 2, this.canvas.height / 2);
+                    const src = this.config.get('icons.'+this.rewards[reward]);
+                    this.upgrades.push({"src": src, "type": this.rewards[reward], "active": false, "juice": 100});
+                    const notify = new Sprite(src, undefined, this.canvas.width / 2, this.canvas.height / 2);
                     notify.ttl = 20;
                     notify.mode = "static";
                     this.sprites.push(notify);
@@ -538,7 +555,7 @@ export class Stage extends HTMLElement {
                         notify.scale += 0.1;
                     }
                     notify.destroy = () => {
-                        this.sprites.splice(this.sprites.indexOf(notify), 1);
+                        this.killSprite(notify);
                     }
                 }
                 delete this.rewards[reward];
@@ -614,7 +631,7 @@ export class Stage extends HTMLElement {
         for (const i in this.upgrades) {
             const img = new Image();
             let u = this.upgrades[i];
-            img.src = this.config.getAll().sprites[u.type];
+            img.src = u.src;
             ctx.fillStyle = u.active ? "rgba(255,255,0,1)" : "rgba(255,255,255,1)";
             ctx.font = "12px Arcade";
             ctx.fillText((parseInt(i)+1).toString(), 12 + i * 50, this.canvas.height - 42);
@@ -669,7 +686,7 @@ export class Stage extends HTMLElement {
     drawSprites(paused = false) {
         this.rotate /= 1.1;
         this.player.rotation += this.rotate;
-        for (let sprite of this.sprites) {
+        for (let sprite of this.sprites.sort((a,b) => a.zIndex - b.zIndex )) {
             this.collisionDetection(sprite);
             sprite.animate(this.ctx, paused);
         }
@@ -688,7 +705,7 @@ export class Stage extends HTMLElement {
             if (sprite.distraction == this.sprites[spriteIdx]) {
                 sprite.distraction = undefined;
             }
-            sprite.mode = !sprite.distraction && !sprite.target ? "" : "follow";
+            //sprite.mode = !sprite.distraction && !sprite.target ? "" : "follow";
         }
         this.sprites.splice(spriteIdx, 1);
     }
@@ -709,7 +726,7 @@ export class Stage extends HTMLElement {
                 explosion.alpha /= 1.1;
             }
             explosion.destroy = () => {
-                this.sprites.splice(this.sprites.indexOf(explosion), 1);
+                this.killSprite(explosion);
             }
         }
     }
@@ -734,7 +751,7 @@ export class Stage extends HTMLElement {
         bullet.type = 'bullet';
         this.player.shots ++;
         bullet.destroy = () => {
-            this.sprites.splice(this.sprites.indexOf(bullet), 1);
+            this.killSprite(bullet);
         }
         this.sprites.push(bullet);
     }
