@@ -1,6 +1,9 @@
 export default class Sprite extends Image {
     x = 0;
     y = 0;
+    zIndex = 0;
+    vx = 0; /* velocity x (independent of bearing) */
+    vy = 0; /* velocity y (independent of bearing) */
     w = 0;
     h = 0;
     cx = 0.5;
@@ -95,6 +98,8 @@ export default class Sprite extends Image {
             this.x += Math.cos(this.bearing - Math.PI / 2) * ((this.speed || 0) - (this.pushback || 0));
             this.y += Math.sin(this.bearing - Math.PI / 2) * ((this.speed || 0) - (this.pushback || 0));
         }
+        this.x += this.vx;
+        this.y += this.vy;
     }
     distance(x,y) {
         let deltaX = this.x - x;
