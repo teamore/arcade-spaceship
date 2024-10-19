@@ -6,6 +6,8 @@ export default class Sprite extends Image {
     cx = 0.5;
     cy = 0.5;
     scale = 0.3;
+    target = undefined;
+    distraction = undefined;
     ttl = undefined;
     frame = 0;
     rotation = 0;
@@ -44,8 +46,9 @@ export default class Sprite extends Image {
         this.doomed = true;
     }
     orientate(x = undefined, y = undefined) {
-        x = x || this.target?.x;
-        y = y || this.target?.y;
+        let target = this.distraction || this.target;
+        x = x || target?.x;
+        y = y || target?.y;
         if (x !== undefined && y !== undefined) {
             const dx = x - this.x;
             const dy = y - this.y;
@@ -78,15 +81,16 @@ export default class Sprite extends Image {
                 }
             }
         }
+        let target = this.distraction || this.target;
         this.pushback /= 1.1;
-        if (!this.doomed && this.mode === "follow" && !(this.target.type === "player" && this.target.lives < 1)) {
+        if (!this.doomed && this.mode === "follow" && !(target?.type === "player" && target?.lives < 1)) {
             this.orientate();
         }
-        if (this.mode === "orbit" && this.target) {
+        if (this.mode === "orbit" && target) {
             this.radius = this.radius / this.gravity || 1;
             this.bearing += this.speed;
-            this.x = this.target.x + Math.cos(this.bearing) * (this.radius || 100);
-            this.y = this.target.y + Math.sin(this.bearing) * (this.radius || 100);
+            this.x = target.x + Math.cos(this.bearing) * (this.radius || 100);
+            this.y = target.y + Math.sin(this.bearing) * (this.radius || 100);
         } else {
             this.x += Math.cos(this.bearing - Math.PI / 2) * ((this.speed || 0) - (this.pushback || 0));
             this.y += Math.sin(this.bearing - Math.PI / 2) * ((this.speed || 0) - (this.pushback || 0));
