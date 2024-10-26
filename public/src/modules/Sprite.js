@@ -4,6 +4,7 @@ export default class Sprite extends Image {
     zIndex = 0;
     vx = 0; /* velocity x (independent of bearing) */
     vy = 0; /* velocity y (independent of bearing) */
+    agenda = [];
     w = 0;
     h = 0;
     cx = 0.5;
@@ -73,6 +74,15 @@ export default class Sprite extends Image {
     }
     update() {
         this.onBeforeUpdate();
+        if (this.agenda) {
+            for(const agenda of this.agenda) {
+                if (eval(agenda.condition)) {
+                    for(const prop in agenda.modify) {
+                        this[prop] = agenda.modify[prop];
+                    }
+                }
+            }
+        }
         this.frame ++;
         if (this.ttl !== undefined) {
             this.ttl --;
@@ -90,6 +100,7 @@ export default class Sprite extends Image {
             this.orientate();
         }
         if (this.mode === "orbit" && target) {
+            this.radius += this.pushback;
             this.radius = this.radius / this.gravity || 1;
             this.bearing += this.speed;
             this.x = target.x + Math.cos(this.bearing) * (this.radius || 100);

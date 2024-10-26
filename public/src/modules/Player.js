@@ -10,6 +10,7 @@ export default class Player extends Sprite {
     lives = 3;
     type = 'player';
     mode = "";
+    alias = "";
     init() {
         this.lives = 3;
         this.hits = 0;

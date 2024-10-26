@@ -7,9 +7,6 @@ export default class Reward extends Sprite {
     radius = 100;
     update() {
         this.rotation -= 0.05;
-        if (this.target && this.target.lives < 1) {
-            this.pushback = 1;
-        }
         super.update();
     }
 }

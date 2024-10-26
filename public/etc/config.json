@@ -14,6 +14,27 @@
     "46000": "laser", "47000": "bomb", "48000": "supercharge", "49000": "shield",
     "50000": "1up", "51000": "xray", "52000": "bomb", "53000": "shield", "55000": "supercharge"
   },
+  "schedule": [
+    {"start": 0, "action": "addMessage","params": ["wave 1","get ready!"]},
+    {"start": 0, "end": 200, "action": "spawnEnemy", "interval": 2, "params":
+        {"src": "./assets/sprites/Foe1.svg", "mode": "follow", "speed": "1", "count": "1", "bounty": 30}
+    },
+    {"start": 25, "action": "addMessage", "params": ["wave 2","get ready!"]},
+    {"start": 0, "end": 50, "action": "spawnEnemy", "interval": 4 , "params":
+      {"src": "./assets/sprites/Foe2.svg", "mode": "orbit", "health": 5, "speed": 0.01, "radius": "eval(450+i*5)", "gravity": 1.005, "count": 8, "bounty": 50, "threshold": "eval(250+i*20)",
+        "agenda": [
+          {"condition": "(this.frame>this.threshold)", "modify": {"mode": "follow", "speed": 1.5}}
+        ]
+      }
+    },
+    {"start": 50, "action": "addMessage","params": ["boss fight","get ready!"]},
+    {"start": 50, "end": 75, "action": "spawnEnemy","interval": 25, "speed": "2", "params":
+      {"src": "./assets/sprites/Foe3.svg", "mode": "evade", "model": "destroyer", "bounty": 1000}
+    },
+    {"start": 75, "action": "bonus", "params": {
+      "message": "well done!", "reward": "1up", "timeBonus": "1"
+    }}
+  ],
   "sounds": {
     "laser1":             "./assets/sounds/laser1.mp3",
     "laser2":             "./assets/sounds/laser2.mp3",
@@ -50,22 +71,22 @@
     "background-level8":  "./assets/images/nebula.jpg",
     "background-level9":  "./assets/images/purple.jpg"
   },
+  "icons": {
+    "1up":                "./assets/icons/1up.svg",
+    "supercharge":        "./assets/icons/Powerup.svg",
+    "laser":              "./assets/icons/Upgrade.svg",
+    "xray":               "./assets/icons/Xray.svg",
+    "bomb":               "./assets/icons/Bomb.svg",
+    "shield":             "./assets/icons/Shield.svg",
+    "stealth":            "./assets/icons/Stealth.svg",
+    "confusion":          "./assets/icons/Confusion.svg",
+    "blackhole":          "./assets/icons/BlackHole.svg"
+  },
   "sprites": {
     "player":             "./assets/sprites/Shuttle.svg",
     "enemy":              "./assets/sprites/Foe2.svg",
-    "enemy2":             "./assets/sprites/Foe2.svg",
-    "enemy3":             "./assets/sprites/Foe3.svg",
-    "1up":                "./assets/sprites/1up.svg",
-    "supercharge":        "./assets/sprites/Powerup.svg",
-    "laser":              "./assets/sprites/Upgrade.svg",
-    "xray":               "./assets/sprites/Xray.svg",
-    "bomb":               "./assets/sprites/Bomb.svg",
-    "shield":             "./assets/sprites/Shield.svg",
     "shieldOverlay":      "./assets/sprites/ShieldOverlay.svg",
-    "blackhole":          "./assets/sprites/BlackHole.svg",
     "blackholeOverlay":   "./assets/sprites/Twirl.svg",
-    "stealth":            "./assets/sprites/Stealth.svg",
-    "confusion":          "./assets/sprites/Confusion.svg",
     "bullet":             "./assets/sprites/Laserbeam.svg",
     "explosion1":         "./assets/sprites/Explosion5.svg",
     "explosion2":         "./assets/sprites/Explosion6.svg",

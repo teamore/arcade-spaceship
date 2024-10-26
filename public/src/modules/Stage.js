@@ -6,9 +6,11 @@ import AudioDesk from "./AudioDesk.js";
 import Config from "./Config.js";
 import FontLoader from './Fontloader.js';
 import BlackHole from "./BlackHole.js";
+import Scheduler from "./Scheduler.js";
 export class Stage extends HTMLElement {
     config= new Config();
     scores = new Config();
+    messages = [];
     currentFrame = 0;
     scenes = ["intro", "play", "pause", "gameover", "scores"]
     currentScene = "intro";
@@ -65,20 +67,24 @@ export class Stage extends HTMLElement {
         return rank;
     }
     onKey(e) {
+        if ([" ", "Enter"].includes(e.key) && e.type == 'keydown' && (this.currentScene === 'intro') || (this.currentScene === 'gameover')) {
+            this.restart();
+        }
         if (this.currentScene === 'topscore' && e.type == 'keydown') {
-            if (e.key.length == 1 && this.player.name.length < 10 && e.key.match(/[a-z0-9\*\[]!§$%&\(\) _-\+]/i)) {
-                this.player.name += e.key;
+            if (e.key.length == 1 && this.player.alias.length < 10 && e.key.match(/[a-z0-9_\-\*\[\]]/i)) {
+                this.player.alias += e.key.toUpperCase();
             }
             if (e.key == "Backspace") {
-                this.player.name = this.player.name.slice(0, -1);
+                this.player.alias = this.player.alias.slice(0, -1);
             }
             if (e.key == "Enter") {
-                this.scores.payload.scores.splice(this.getRank(this.player.score) - 1, 0, {"player": this.player.name, "score": this.player.score});
+                this.scores.payload.scores.splice(this.getRank(this.player.score) - 1, 0, {"player": this.player.alias, "score": this.player.score});
 //                this.scores.payload.scores.pop();
                 this.scores.onSave = (json) => {
                     console.log("Scores saved", json);
                 }
                 this.scores.save();
+                this.player.score = 0;
                 this.currentScene = 'gameover';
             }
             return;
@@ -87,7 +93,10 @@ export class Stage extends HTMLElement {
             if (this.currentScene === 'pause') {
                 this.currentFrame = this.pausedFrame;
                 this.pausedFrame = false;
+                this.currentScene = this.nextScene;
             } else {
+                this.nextScene = this.currentScene;
+                this.currentScene = "pause";
                 this.pausedFrame = this.currentFrame;
             }
         }
@@ -98,9 +107,6 @@ export class Stage extends HTMLElement {
             } else {
                 this.currentScene = this.nextScene;
             }
-        }
-        if ([" ", "Enter"].includes(e.key) && e.type == 'keydown' && (this.currentScene === 'intro') || (this.currentScene === 'gameover')) {
-            this.restart();
         }
         if (this.currentScene !== 'pause') {
             if (e.type == 'keydown') {
@@ -245,12 +251,28 @@ export class Stage extends HTMLElement {
         this.config.load("../etc/config.json");
         this.scores.load("../etc/scores.json");
     }
+    onSchedulerEvent(event, time) {
+        if (!event.interval || time % event.interval === 0) {
+            this[event.action](event?.params);
+        }
+    }
+    addMessage(messages) {
+        if (messages instanceof Array || typeof messages == 'Array' ) {
+            for (const message of messages) {
+                this.messages.unshift({"text": message, "ttl": this.currentFrame + 60});
+            }
+        } else {
+            this.messages.unshift({"text": message, "ttl": this.currentFrame + 60});
+        }
+    }
     dataLoaded() {
         this.init();
         this.run();
     }
 
     init() {
+        this.scheduler = new Scheduler(this.config.get('schedule'));
+        this.scheduler.onEvent = (event, time) => this.onSchedulerEvent(event, time);
         this.sprites = [];
         this.rewards = {...this.config.get('rewards')};
         this.levelInit();
@@ -316,23 +338,34 @@ export class Stage extends HTMLElement {
             }
         }
     }
-    spawnEnemy() {
+    spawnEnemy(params) {
         /* spawn enemy sprite */
-        const enemy = new Enemy(this.config.get('sprites.enemy'), this.player);
-        enemy.randomizeXY(this.canvas.width, this.canvas.height);
-        enemy.scale = 0.15;
-        this.enemies ++;
-        enemy.mode = "follow";
-        this.speed = 1 + this.level / 10;
-        enemy.destroy = () => {
-            this.sprites.splice(this.sprites.indexOf(enemy), 1);
+        const count = parseInt(params.count) || 1;
+        for (let i = 0; i < count ; i ++) {
+            const enemy = new Enemy(params.src || this.config.get('sprites.enemy'), this.player);
+            enemy.randomizeXY(this.canvas.width, this.canvas.height);
+            enemy.scale = 0.15;
+            this.enemies ++;
+            enemy.mode = "follow";
+            enemy.speed = 1 + this.level / 10;
+            for (const param in params) {
+                const result = typeof params[param] === 'string' ? params[param].match(/^eval\((.*)\)$/) : null;
+                if (result) {
+                    enemy[param] = eval(result[1]);
+                } else {
+                    enemy[param] = params[param];
+                }
+            }
+            enemy.destroy = () => {
+                this.sprites.splice(this.sprites.indexOf(enemy), 1);
+            }
+            enemy.bearing = (i / count) * Math.PI * 2;
+            this.sprites.push(enemy);
         }
-        this.sprites.push(enemy);
-
     }
     run() {
-        this.cleanup();
         this.currentFrame ++;
+        this.cleanup();
         setTimeout(() => {
             requestAnimationFrame(() => {this.run();});
         }, 1000 / this.fps);
@@ -353,7 +386,7 @@ export class Stage extends HTMLElement {
             this.writeText("NEW HIGH SCORE", this.canvas.width / 2, 100);
             this.writeText("YOU RANKED #" + rank, this.canvas.width / 2, 150);
             this.writeText("ENTER YOUR NAME", this.canvas.width / 2, 150);
-            this.writeText(this.player.name, this.canvas.width / 2, 200);
+            this.writeText(this.player.alias, this.canvas.width / 2, 200);
             return;
         } else if (this.currentScene === 'scores') {
             this.drawSprites(true);
@@ -372,7 +405,7 @@ export class Stage extends HTMLElement {
                 this.ctx.textAlign = "left";
                 let display = {...score};
                 if (i == rank) {
-                    display.player = this.player.name || "YOU!";
+                    display.player = this.player.alias || "YOU!";
                     display.score = this.player.score;
                 }
                 if (i <= 10) {
@@ -383,6 +416,9 @@ export class Stage extends HTMLElement {
                 }
             }
             return;
+        }
+        if (this.currentFrame % this.fps == 1) {
+            this.scheduler.run(Math.floor(this.currentFrame / this.fps));
         }
         this.consumeUpgrade('blackhole', 0.05);
         if (this.consumeUpgrade('xray')) {
@@ -433,9 +469,6 @@ export class Stage extends HTMLElement {
                 this.levelInit(this.level + 1);
             }
         }
-        if (this.currentFrame % (100 - (this.level < 10 ? this.level * 10 : 90)) == 0) {
-            this.spawnEnemy();
-        }
         this.drawSprites();
         this.drawHUD();
     }
@@ -454,7 +487,7 @@ export class Stage extends HTMLElement {
                         other.wobble = 5;
                         other.wobbleFrame = 0;
                         sprite.destroy();
-                        this.addScore(0.5);
+                        this.addScore(sprite.bounty);
                         this.explode(sprite.x, sprite.y);
                     }
                 }
@@ -496,26 +529,32 @@ export class Stage extends HTMLElement {
                     this.explode(sprite.x, sprite.y);
                     this.explode(other.x, other.y);
                     if (this.player.lives > 0) {
-                        this.addScore(0.5);
+                        this.addScore(sprite.bounty / 2);
                         this.audio.play('enemyCollision');
                     }
                     other.explode();
                     sprite.explode();
                 }
                 if (sprite.type == 'enemy' && (other.type == 'bullet' || other.type == 'bomb') && !sprite.doomed) {
-                    this.audio.play('enemyDeath'+Math.floor(Math.random() * 3 + 1).toString());
-                    this.addScore();
-                    this.checkForRewards();
+                    sprite.health -= other.damage;
                     this.player.hits++;
-                    sprite.explode();
+                    sprite.pushback += 5;
+                    if (sprite.health <= 0) {
+                        this.audio.play('enemyDeath'+Math.floor(Math.random() * 3 + 1).toString());
+                        this.addScore(sprite.bounty);
+                        this.checkForRewards();
+                        sprite.explode();
+                        this.explode(sprite.x, sprite.y);
+                    } else {
+                        this.explode(sprite.x, sprite.y, 0.2, 2);
+                    }
                     other.destroy();
-                    this.explode(sprite.x, sprite.y);
                 }
             }
         }
     }
-    addScore(factor = 1) {
-        this.player.score += Math.ceil(5 - this.player.heat / 10 + this.level * 0.25) * 10 * factor;
+    addScore(bounty = undefined) {
+        this.player.score += bounty || 50;
     }
     spawnReward(rewardType) {
         this.audio.play('bonus');
@@ -529,6 +568,7 @@ export class Stage extends HTMLElement {
             reward.ttl = 800;
             reward.gravity = 0.998;
         } else {
+            reward.damage = 20;
             reward.speed = 0.05;
         }
         reward.destroy = () => {
@@ -542,6 +582,7 @@ export class Stage extends HTMLElement {
             if (this.player.score >= reward) {
                 if (this.rewards[reward] === "bomb" || this.rewards[reward] === "1up") {
                     this.spawnReward(this.rewards[reward]);
+
                 } else {
                     const src = this.config.get('icons.'+this.rewards[reward]);
                     this.upgrades.push({"src": src, "type": this.rewards[reward], "active": false, "juice": 100});
@@ -588,16 +629,6 @@ export class Stage extends HTMLElement {
             this.writeText("GAME OVER", this.canvas.width / 2, this.canvas.height / 2);
             this.writeText("INSERT COIN", this.canvas.width / 2, this.canvas.height / 2 + 25);
             this.writeText("(PRESS SPACE)", this.canvas.width / 2, this.canvas.height / 2 + 50);
-        } else if (this.currentFrame < this.warmup) {
-            this.setStyle("blink");
-            ctx.fillStyle = "rgba(255,255,255,"+Math.abs(50 - this.currentFrame % 100) / 50+")";
-            this.writeText("GET READY", this.canvas.width / 2, this.canvas.height / 2 + 50);
-            const alpha = (this.warmup - this.currentFrame > 50) ? 1 : (this.warmup - this.currentFrame) / 100;
-            ctx.fillStyle = "rgba(255,255,255,"+alpha+")";
-            if (this.level == 1) {
-                this.writeText("Use Arrow keys and space to fire", this.canvas.width / 2, this.canvas.height / 2 + 75);
-            }
-            this.writeText("LEVEL " + this.level, this.canvas.width / 2, this.canvas.height / 2 - 50);
         } else {
             ctx.globalAlpha = (ctx.globalAlpha * 10 + 1) / 11;
             for(let i = 0; i < this.player.lives; i++) {
@@ -664,6 +695,14 @@ export class Stage extends HTMLElement {
             this.setStyle("blink");
             ctx.fillText("PAUSED", this.canvas.width / 2, this.canvas.height / 2 - 80);
             ctx.fillText("PRESS P TO RESUME", this.canvas.width / 2, this.canvas.height / 2 - 60);
+        } else if (this.messages) {
+            this.setStyle("blink");
+            for (const messageId in this.messages) {
+                if (this.messages[messageId].ttl <= this.currentFrame) {
+                    this.messages.splice(messageId, 1);
+                }
+                ctx.fillText(this.messages[messageId]?.text || this.messages[messageId], this.canvas.width / 2, this.canvas.height / 2 + messageId * 20);
+            }
         }
     }
     getPowerGradient(percentage) {
@@ -748,6 +787,7 @@ export class Stage extends HTMLElement {
         bullet.y = this.player.y + bullet.dy * 3;
         bullet.speed = 20;
         bullet.ttl = 40;
+        bullet.damage = 5;
         bullet.type = 'bullet';
         this.player.shots ++;
         bullet.destroy = () => {
