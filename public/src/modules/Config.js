@@ -6,12 +6,16 @@ export default class Config {
             this.load(src);
         }
     }
+    restore() {
+        this.payload = JSON.parse(this.originalPayload);
+    }
     load(src) {
         this.src = src;
         fetch(src)
             .then((response) => response.json())
             .then((json) => {
                 this.payload = json;
+                this.originalPayload = JSON.stringify(json);
                 this.onLoad(json);
             });
     }
