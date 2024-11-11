@@ -7,6 +7,7 @@ import Config from "./Config.js";
 import FontLoader from './Fontloader.js';
 import BlackHole from "./BlackHole.js";
 import Scheduler from "./Scheduler.js";
+import Projectile from "./Projectile.js";
 export class Stage extends HTMLElement {
     config= new Config();
     scores = new Config();
@@ -120,13 +121,18 @@ export class Stage extends HTMLElement {
     getUpgrade(upgrade) {
         return this.upgrades.filter(u => u.type == upgrade && u.active)[0];
     }
+    ucFirst(string) {
+        return string[0].toUpperCase() + string.slice(1);
+    }
     toggleUpgrade(upgradeIdx, state = undefined) {
-        let u = this.upgrades[upgradeIdx];
+        let u = isNaN(upgradeIdx) ? this.getUpgrade(upgradeIdx) : this.upgrades[upgradeIdx];
         if (!u) {
             return;
         }
         u.active = (state === undefined) ? !u.active : state;
-        this.audio.play(u.active ?'upgradeOn' : 'upgradeOff');
+        if (!this.audio.play(u.active ? 'upgrade'+this.ucFirst(u.type)+"On" : 'upgrade'+this.ucFirst(u.type)+"Off")) {
+            this.audio.play(u.active ? 'upgradeOn' : 'upgradeOff');
+        }
         if (u.type == "shield") {
             if (u.active) {
                 let overlay = new Sprite(this.config.get("sprites.shieldOverlay"), this.player, this.player.x, this.player.y);
@@ -208,6 +214,27 @@ export class Stage extends HTMLElement {
             this.shockwave();
             this.player.heat = 60;
         }
+        if (this.getUpgrade('torpedo')) {
+            if (this.player.decay < 0) {
+                this.player.decay = 10;
+                this.consumeUpgrade('torpedo', 20);
+                this.toggleUpgrade('torpedo', false);
+                const torpedo = this.fire(0, this.config.get('sprites.torpedo'));
+                torpedo.target = this.getClosestEnemy(torpedo, true);
+                torpedo.onBeforeUpdate = () => {
+                    if (torpedo.target == undefined || torpedo.target?.doomed) {
+                        torpedo.target = this.getClosestEnemy(torpedo, true);
+                    }
+                    torpedo.rotation = (torpedo.rotation * 2 + torpedo.bearing) / 3;
+                }
+                torpedo.damage = 100;
+                torpedo.type = 'torpedo';
+                torpedo.mode = "follow";
+                torpedo.speed = 3;
+                torpedo.ttl = undefined;
+            }
+            this.player.decay --;
+        }
         if (this.keyMap[" "]) {
             this.audio.stop('powerup');
             if (this.player.decay < 0 && this.player.heat < 40) {
@@ -253,8 +280,14 @@ export class Stage extends HTMLElement {
     }
     onSchedulerEvent(event, time) {
         if (!event.interval || time % event.interval === 0) {
-            this[event.action](event?.params);
+            this[event.action]?.(event?.params);
         }
+    }
+    onSchedulerLoopEnd(event, time) {
+        if (event.until === 'cleared') {
+            return (this.sprites.filter(x => x.type == 'enemy' && !x.doomed).length > 0);
+        }
+        return true;
     }
     addMessage(messages) {
         if (messages instanceof Array || typeof messages == 'Array' ) {
@@ -271,8 +304,10 @@ export class Stage extends HTMLElement {
     }
 
     init() {
+        this.config.restore();
         this.scheduler = new Scheduler(this.config.get('schedule'));
         this.scheduler.onEvent = (event, time) => this.onSchedulerEvent(event, time);
+        this.scheduler.onLoopEnd = (event, time) => this.onSchedulerLoopEnd(event, time);
         this.sprites = [];
         this.rewards = {...this.config.get('rewards')};
         this.levelInit();
@@ -301,28 +336,28 @@ export class Stage extends HTMLElement {
         this.audio.play('levelup');
         this.pushEnemies();
     }
-    shockwave() {
+    shockwave(x = undefined, y = undefined, ttl = 40, damageRadius = 300, damageAmount = 50, pushbackRadius = 600, pushbackIntensity = 30) {
         const whoosh = new Sprite(this.config.get('sprites.shockwave'));
-        whoosh.x = this.canvas.width / 2;
-        whoosh.y = this.canvas.height / 2;
+        whoosh.x = x || this.canvas.width / 2;
+        whoosh.y = y || this.canvas.height / 2;
         whoosh.scale = 0.2;
-        whoosh.ttl = 40;
+        whoosh.ttl = ttl;
         whoosh.alpha = 1;
+        whoosh.speed = 0.2;
+        whoosh.fade = 1.05;
         whoosh.type = "shockwave"
         whoosh.onBeforeUpdate = () => {
-            whoosh.scale += 0.2;
-            whoosh.alpha /= 1.05;
+            whoosh.scale += whoosh.speed;
+            whoosh.alpha /= whoosh.fade;
         }
-        for(let sprite of this.sprites) {
-            if (sprite.type == 'enemy' && !sprite.doomed) {
-                let distance = sprite.distance(whoosh.x, whoosh.y);
-                if (distance < 300) {
-                    this.audio.play('enemyDeath'+Math.floor(Math.random() * 3 + 1).toString());
-                    sprite.explode();
-                    this.explode(sprite.x, sprite.y);
-                } else {
-                    sprite.pushback = 15 - distance / 50;
-                }
+        for(let sprite of this.sprites.filter(x => x.type == 'enemy' && !x.doomed)) {
+            let distance = sprite.distance(whoosh.x, whoosh.y);
+            if (distance < damageRadius && sprite.decreaseHealth(damageAmount, 'shock') === true) {
+                this.audio.play('enemyDeath'+Math.floor(Math.random() * 3 + 1).toString());
+                sprite.explode();
+                this.explode(sprite.x, sprite.y);
+            } else if (distance <= pushbackRadius) {
+                sprite.pushback = pushbackIntensity * (1 - (distance / pushbackRadius));
             }
         }
         whoosh.destroy = () => {
@@ -330,6 +365,7 @@ export class Stage extends HTMLElement {
         }
         this.sprites.push(whoosh);
         this.audio.play('pushback');
+        return whoosh;
     }
     pushEnemies(amount = 10) {
         for (let sprite of this.sprites) {
@@ -340,9 +376,9 @@ export class Stage extends HTMLElement {
     }
     spawnEnemy(params) {
         /* spawn enemy sprite */
-        const count = parseInt(params.count) || 1;
+        const count = parseInt(params?.count) || 1;
         for (let i = 0; i < count ; i ++) {
-            const enemy = new Enemy(params.src || this.config.get('sprites.enemy'), this.player);
+            const enemy = new Enemy(params?.src || this.config.get('sprites.enemy'), this.player);
             enemy.randomizeXY(this.canvas.width, this.canvas.height);
             enemy.scale = 0.15;
             this.enemies ++;
@@ -358,6 +394,15 @@ export class Stage extends HTMLElement {
             }
             enemy.destroy = () => {
                 this.sprites.splice(this.sprites.indexOf(enemy), 1);
+            }
+            enemy.shoot = (params) => {
+                const bullet = this.fire(0, params.src, undefined, enemy);
+                for (const param in params) {
+                    bullet[param] = params[param];
+                }
+                if (params?.target == 'player') {
+                    bullet.setTarget(this.player, params?.mode);
+                }
             }
             enemy.bearing = (i / count) * Math.PI * 2;
             this.sprites.push(enemy);
@@ -418,21 +463,12 @@ export class Stage extends HTMLElement {
             return;
         }
         if (this.currentFrame % this.fps == 1) {
-            this.scheduler.run(Math.floor(this.currentFrame / this.fps));
+            this.scheduler.run();
         }
         this.consumeUpgrade('blackhole', 0.05);
         if (this.consumeUpgrade('xray')) {
+            let closestEnemy = this.getClosestEnemy();
             let closestDistance = 1000;
-            let closestEnemy = undefined;
-            for (let sprite of this.sprites) {
-                if (sprite.type === "enemy" && !sprite.doomed) {
-                    let distance = sprite.distance(this.player.x, this.player.y);
-                    if (distance < closestDistance) {
-                        closestDistance = distance;
-                        closestEnemy = sprite;
-                    }
-                }
-            }
             if (closestEnemy) {
                 this.player.orientate(closestEnemy.x, closestEnemy.y);
                 this.player.rotation = (this.player.rotation + this.player.bearing) / 2;
@@ -472,6 +508,22 @@ export class Stage extends HTMLElement {
         this.drawSprites();
         this.drawHUD();
     }
+    getClosestEnemy(subject = this.player, unique = true) {
+        let closestEnemy, closestDistance = undefined;
+        for (let sprite of this.sprites) {
+            if (sprite.type === "enemy" && !sprite.doomed) {
+                let distance = sprite.distance(subject.x, subject.y);
+                if ((closestDistance === undefined || distance < closestDistance) && (!sprite.targetedBy)) {
+                    closestDistance = distance;
+                    closestEnemy = sprite;
+                }
+            }
+        }
+        if (unique && closestEnemy) {
+            closestEnemy.targetedBy = subject;
+        }
+        return closestEnemy;
+    }
     collisionDetection(sprite) {
         for (let other of this.sprites) {
             if (sprite == other) {
@@ -508,7 +560,7 @@ export class Stage extends HTMLElement {
                     }
                 }
                 */
-                if (sprite.type == 'player' && other.type == 'enemy' && !other.doomed && !sprite.lives < 1) {
+                if (sprite.type == 'player' && (other.type == 'enemy' || other.type == 'enemyBullet') && !other.doomed && !sprite.lives < 1) {
                     if (!this.player.grace) {
                         this.audio.play('playerDeath');
                         this.shockwave();
@@ -525,36 +577,56 @@ export class Stage extends HTMLElement {
                     sprite.destroy();
 
                 }
-                if (sprite.type == 'enemy' && other.type == 'enemy' && !sprite.doomed && !other.doomed) {
-                    this.explode(sprite.x, sprite.y);
-                    this.explode(other.x, other.y);
-                    if (this.player.lives > 0) {
-                        this.addScore(sprite.bounty / 2);
-                        this.audio.play('enemyCollision');
-                    }
-                    other.explode();
-                    sprite.explode();
+                if (sprite.type == 'enemy' && other.type == 'torpedo') {
+                    let shockwave = this.shockwave(other.x, other.y, 4, 100, 50,300, 20);
+                    this.audio.stop('upgradeTorpedoOn');
+                    this.audio.play('torpedoBlowup');
+                    this.enemyHit(sprite, other);
+                    sprite.targetedBy = undefined;
+                    shockwave.fade = 1.2;
                 }
-                if (sprite.type == 'enemy' && (other.type == 'bullet' || other.type == 'bomb') && !sprite.doomed) {
-                    sprite.health -= other.damage;
-                    this.player.hits++;
-                    sprite.pushback += 5;
-                    if (sprite.health <= 0) {
-                        this.audio.play('enemyDeath'+Math.floor(Math.random() * 3 + 1).toString());
-                        this.addScore(sprite.bounty);
-                        this.checkForRewards();
-                        sprite.explode();
+                if (sprite.type == 'enemy' && other.type == 'enemy' && !sprite.doomed && !other.doomed) {
+                    if (sprite?.decreaseHealth(5, 'collision') === true) {
                         this.explode(sprite.x, sprite.y);
-                    } else {
-                        this.explode(sprite.x, sprite.y, 0.2, 2);
+                        this.explode(other.x, other.y);
+                        if (this.player.lives > 0) {
+                            this.audio.play('enemyCollision');
+                        }
+                        sprite.explode();
                     }
-                    other.destroy();
+                }
+                if ((sprite.type == 'enemy' || sprite.type == 'enemyBullet') && (other.type == 'bullet' || other.type == 'bomb') && !sprite.doomed) {
+                    this.enemyHit(sprite, other);
                 }
             }
         }
     }
+    enemyHit(enemy, projectile) {
+        enemy.health -= projectile.damage;
+        this.player.hits++;
+        if (enemy.type === 'enemyBullet' || enemy.decreaseHealth(5, projectile.type) === true) {
+            this.audio.play(enemy.fatalSound || ('enemyDeath'+Math.floor(Math.random() * 3 + 1).toString()));
+            this.addScore(enemy.bounty);
+            this.checkForRewards();
+            if (typeof enemy.explode === 'function') {
+                enemy.explode();
+            }
+            if (enemy.model === 'boss') {
+                this.explode(enemy.x, enemy.y, 0.5, 20);
+                this.shockwave(enemy.x, enemy.y);
+            } else {
+                this.explode(enemy.x, enemy.y);
+            }
+        } else {
+            this.audio.play('enemyHit');
+            enemy.pushback += 5;
+            this.explode(enemy.x, enemy.y, 0.2, 2);
+        }
+        projectile.destroy();
+
+    }
     addScore(bounty = undefined) {
-        this.player.score += bounty || 50;
+        this.player.score += bounty || 0;
     }
     spawnReward(rewardType) {
         this.audio.play('bonus');
@@ -774,26 +846,33 @@ export class Stage extends HTMLElement {
             this.sounds[id].pause();
         }
     }
-    fire(offset = 0, target = undefined) {
-        const idx = Math.min(Math.floor(this.player.heat / 8) + 1, 6);
-        this.audio.play('laser' + idx.toString());
-        const bullet = new Sprite(this.config.get('sprites.bullet'), target);
-        if (!target) {
-            bullet.rotation = bullet.bearing = this.player.rotation;
+    fire(offset = 0, src = undefined, target = undefined, subject = undefined) {
+        if (!subject) {
+            subject = this.player;
         }
-        bullet.dx = 14  * Math.sin(bullet.rotation + offset);
-        bullet.dy = -14 * Math.cos(bullet.rotation + offset);
-        bullet.x = this.player.x + bullet.dx * 3;
-        bullet.y = this.player.y + bullet.dy * 3;
-        bullet.speed = 20;
-        bullet.ttl = 40;
-        bullet.damage = 5;
-        bullet.type = 'bullet';
-        this.player.shots ++;
+        const idx = Math.min(Math.floor(subject.heat / 8) + 1, 6);
+        this.audio.play('laser' + idx.toString());
+
+        let rotation = subject.rotation;
+        let dx = 14  * Math.sin(rotation + offset);
+        let dy = -14 * Math.cos(rotation + offset);
+
+        let x = subject.x + dx * 3;
+        let y = subject.y + dy * 3;
+
+        const bullet = new Projectile(
+            src || this.config.get('sprites.bullet'),
+            target,
+            x, y, dx, dy
+        );
+        bullet.rotation = bullet.bearing = rotation;
+
+        subject.shots ++;
         bullet.destroy = () => {
             this.killSprite(bullet);
         }
         this.sprites.push(bullet);
+        return bullet;
     }
 }
 
