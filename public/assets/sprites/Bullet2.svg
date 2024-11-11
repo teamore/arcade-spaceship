@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg id="Ebene_2" data-name="Ebene 2" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 173 170.89">
+  <defs>
+    <style>
+      .cls-1 {
+        fill: #fff;
+      }
+    </style>
+  </defs>
+  <g id="Projectile">
+    <circle class="cls-1" cx="86.5" cy="85.44" r="36"/>
+    <g>
+      <path class="cls-1" d="m100,0v20.32c30.22,6.26,53,33.08,53,65.12s-22.78,58.86-53,65.12v20.32c41.31-6.5,73-42.34,73-85.44S141.31,6.5,100,0Z"/>
+      <path class="cls-1" d="m73,150.56c-30.22-6.26-53-33.08-53-65.12S42.78,26.58,73,20.32V0C31.69,6.5,0,42.34,0,85.44s31.69,78.94,73,85.44v-20.32Z"/>
+    </g>
+  </g>
+</svg>
