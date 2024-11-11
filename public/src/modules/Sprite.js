@@ -5,6 +5,7 @@ export default class Sprite extends Image {
     vx = 0; /* velocity x (independent of bearing) */
     vy = 0; /* velocity y (independent of bearing) */
     agenda = [];
+    inertia = 1;
     w = 0;
     h = 0;
     cx = 0.5;
@@ -46,6 +47,11 @@ export default class Sprite extends Image {
         }
         this.target = target;
     }
+    explode() {
+        this.ttl = 80;
+        this.spin = Math.random() * 4 - 2;
+        this.destroy();
+    }
     destroy() {
         this.doomed = true;
     }
@@ -58,6 +64,10 @@ export default class Sprite extends Image {
             const dy = y - this.y;
             this.bearing = Math.atan2(dy, dx) + Math.PI / 2;
         }
+        this.normalize();
+        let diff = this.bearing - this.rotation;
+        diff = ((diff + Math.PI) % (2 * Math.PI)) - Math.PI;
+        this.rotation += diff * (this.agility || 1);
     }
     animate(ctx, paused = false) {
         if (paused === false) {
@@ -72,13 +82,25 @@ export default class Sprite extends Image {
     onBeforeUpdate() {
 
     }
+    dispatchEvent(event, params) {
+        if (this[event] && typeof this[event] === "function") {
+            this[event](params);
+        }
+    }
     update() {
         this.onBeforeUpdate();
         if (this.agenda) {
             for(const agenda of this.agenda) {
                 if (eval(agenda.condition)) {
-                    for(const prop in agenda.modify) {
-                        this[prop] = agenda.modify[prop];
+                    if (agenda.modify) {
+                        for (const prop in agenda.modify) {
+                            this[prop] = agenda.modify[prop];
+                        }
+                    }
+                    if (agenda.events) {
+                        for (const event in agenda.events) {
+                            this.dispatchEvent(event, agenda.events[event]);
+                        }
                     }
                 }
             }
@@ -94,23 +116,37 @@ export default class Sprite extends Image {
                 }
             }
         }
+        if (this.doomed) {
+            this.rotation += this.spin;
+            this.spin /= 1.05;
+            this.alpha = this.alpha / 1.08;
+            this.x -= Math.cos(this.bearing - Math.PI / 2) * (2);
+            this.y -= Math.sin(this.bearing - Math.PI / 2) * (2);
+        }
         let target = this.distraction || this.target;
         this.pushback /= 1.1;
-        if (!this.doomed && this.mode === "follow" && !(target?.type === "player" && target?.lives < 1)) {
+        if (!this.doomed && this.mode === 'follow' && !(target?.type === "player" && target?.lives < 1)) {
             this.orientate();
         }
+        this.normalize();
         if (this.mode === "orbit" && target) {
-            this.radius += this.pushback;
+            this.radius += this.pushback / this.inertia;
             this.radius = this.radius / this.gravity || 1;
             this.bearing += this.speed;
             this.x = target.x + Math.cos(this.bearing) * (this.radius || 100);
             this.y = target.y + Math.sin(this.bearing) * (this.radius || 100);
         } else {
-            this.x += Math.cos(this.bearing - Math.PI / 2) * ((this.speed || 0) - (this.pushback || 0));
-            this.y += Math.sin(this.bearing - Math.PI / 2) * ((this.speed || 0) - (this.pushback || 0));
+            this.x += Math.cos(this.rotation - Math.PI / 2) * ((this.speed || 0) - (this.pushback || 0) / (this.inertia || 1));
+            this.y += Math.sin(this.rotation - Math.PI / 2) * ((this.speed || 0) - (this.pushback || 0) / (this.inertia || 1));
         }
         this.x += this.vx;
         this.y += this.vy;
+    }
+    normalize() {
+        this.bearing %= 2 * Math.PI;
+        this.bearing += (this.bearing < 0) ? 2 * Math.PI : 0;
+        this.rotation %= 2 * Math.PI;
+        this.rotation += (this.rotation < 0) ? 2 * Math.PI : 0;
     }
     distance(x,y) {
         let deltaX = this.x - x;
