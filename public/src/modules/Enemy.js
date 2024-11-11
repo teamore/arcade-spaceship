@@ -4,14 +4,14 @@ export default class Enemy extends Sprite {
     doomed = false;
     speed = 1;
     health = 10;
-    explode() {
-        this.doomed = true;
-        this.ttl = 80;
-        this.spin = Math.random() * 2 - 1;
+    immunities = [];
+    decreaseHealth(amount = 5, damageType = 'projectile') {
+        if (this.immunities.indexOf(damageType) === -1) {
+            this.health -= amount;
+        }
+        return this.health <= 0; // returns true if health decrease was fatal, false if health remains
     }
-
     update () {
-
         if (this.mode === "follow" && this.target && this.target.lives > 0 && !this.doomed) {
             this.orientate();
         }
@@ -22,13 +22,6 @@ export default class Enemy extends Sprite {
             this.bearing = this.rotation + Math.random() * 3 - 1.5;
         } else {
             this.rotation = (this.rotation * 3 + this.bearing) / 4;
-        }
-        if (this.doomed) {
-            this.rotation += this.spin;
-            this.spin /= 1.05;
-            this.alpha = this.alpha / 1.08;
-            this.x -= Math.cos(this.bearing - Math.PI / 2) * (2);
-            this.y -= Math.sin(this.bearing - Math.PI / 2) * (2);
         }
         return super.update();
     }
