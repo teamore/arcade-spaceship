@@ -22,6 +22,7 @@ export default class AudioDesk {
             this.media[sound].currentTime = offset;
             this.media[sound].play();
         }
+        return this.media[sound];
     }
     toggle(sound) {
         if (this.media[sound].paused) {
