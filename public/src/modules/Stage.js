@@ -279,6 +279,14 @@ export class Stage extends HTMLElement {
         this.scores.load("../etc/scores.json");
     }
     onSchedulerEvent(event, time) {
+        if (event.level !== undefined) {
+            if (event.level !== this.level) {
+                this.levelInit(event.level);
+            }
+            if (event.action !== 'addMessage') {
+                this.addMessage(["wave "+event.level,"get ready!"]);
+            }
+        }
         if (!event.interval || time % event.interval === 0) {
             this[event.action]?.(event?.params);
         }
@@ -499,10 +507,6 @@ export class Stage extends HTMLElement {
                 this.currentScene = 'topscore';
             } else {
                 this.currentScene = 'gameover';
-            }
-        } else if (this.currentFrame > this.warmup) {
-            if (this.currentFrame >= this.level * 1500) {
-                this.levelInit(this.level + 1);
             }
         }
         this.drawSprites();
@@ -767,13 +771,17 @@ export class Stage extends HTMLElement {
             this.setStyle("blink");
             ctx.fillText("PAUSED", this.canvas.width / 2, this.canvas.height / 2 - 80);
             ctx.fillText("PRESS P TO RESUME", this.canvas.width / 2, this.canvas.height / 2 - 60);
-        } else if (this.messages) {
+        } else if (this.messages && this.player.lives > 0) {
             this.setStyle("blink");
             for (const messageId in this.messages) {
                 if (this.messages[messageId].ttl <= this.currentFrame) {
                     this.messages.splice(messageId, 1);
+                } else {
+                    let txt = this.messages[messageId]?.text || this.messages[messageId];
+                    if (txt) {
+                        ctx.fillText(txt, this.canvas.width / 2, this.canvas.height / 2 + messageId * 20);
+                    }
                 }
-                ctx.fillText(this.messages[messageId]?.text || this.messages[messageId], this.canvas.width / 2, this.canvas.height / 2 + messageId * 20);
             }
         }
     }
