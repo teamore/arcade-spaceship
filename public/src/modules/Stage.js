@@ -4,7 +4,7 @@ import Player from "./Player.js";
 import Reward from "./Reward.js";
 import AudioDesk from "./AudioDesk.js";
 import Config from "./Config.js";
-import FontLoader from './Fontloader.js';
+import FontLoader from './FontLoader.js';
 import BlackHole from "./BlackHole.js";
 import Scheduler from "./Scheduler.js";
 import Projectile from "./Projectile.js";
