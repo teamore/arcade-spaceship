@@ -269,7 +269,7 @@ export class Stage extends HTMLElement {
     loadData() {
         this.config.onLoad = (json) => {
             this.audio.loadSounds(this.config.get('sounds'));
-            this.fontLoader = new FontLoader('../assets/fonts/GamePlayed.ttf', 'Arcade');
+            this.fontLoader = new FontLoader('./assets/fonts/GamePlayed.ttf', 'Arcade');
             this.dataLoaded();
         }
         this.scores.onLoad = (json) => {
