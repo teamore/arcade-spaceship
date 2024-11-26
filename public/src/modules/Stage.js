@@ -78,7 +78,7 @@ export class Stage extends HTMLElement {
             if (e.key == "Backspace") {
                 this.player.alias = this.player.alias.slice(0, -1);
             }
-            if (e.key == "Enter") {
+            if (e.key == "Enter" && this.player.alias.length > 3) {
                 this.scores.payload.scores.splice(this.getRank(this.player.score) - 1, 0, {"player": this.player.alias, "score": this.player.score});
 //                this.scores.payload.scores.pop();
                 this.scores.onSave = (json) => {
