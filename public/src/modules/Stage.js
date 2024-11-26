@@ -275,8 +275,8 @@ export class Stage extends HTMLElement {
         this.scores.onLoad = (json) => {
 
         }
-        this.config.load("../etc/config.json");
-        this.scores.load("../etc/scores.json");
+        this.config.load("./etc/config.json");
+        this.scores.load("./etc/scores.json");
     }
     onSchedulerEvent(event, time) {
         if (event.level !== undefined) {
