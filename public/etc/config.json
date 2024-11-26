@@ -2,7 +2,7 @@
   "rewards": {
     "250": "bomb", "500": "bomb", "1000": "bomb", "1500": "bomb", "2000": "shield",
     "2500": "bomb", "3000": "bomb", "3500": "bomb", "4000": "laser",
-    "4500": "bomb", "5000": "1up", "6000": "bomb", "7000": "supercharge",
+    "4500": "bomb", "5000": "torpedo", "6000": "bomb", "7000": "supercharge",
     "8000": "bomb", "9000": "bomb", "10000": "1up", "11000": "xray",
     "12000": "laser", "13000": "bomb", "14000": "shield", "15000": "1up",
     "16000": "laser", "17000": "bomb", "18000": "supercharge", "19000": "xray",
@@ -15,24 +15,150 @@
     "50000": "1up", "51000": "xray", "52000": "bomb", "53000": "shield", "55000": "supercharge"
   },
   "schedule": [
-    {"start": 0, "action": "addMessage","params": ["wave 1","get ready!"]},
-    {"start": 0, "end": 200, "action": "spawnEnemy", "interval": 2, "params":
-        {"src": "./assets/sprites/Foe1.svg", "mode": "follow", "speed": "1", "count": "1", "bounty": 30}
+    {"start": 0, "end": 2, "level": 1},
+    {"start": 1, "end": 25, "action": "spawnEnemy", "interval": 2, "params":
+        {
+          "src": "./assets/sprites/Foe4.svg",
+          "mode": "follow",
+          "speed": "1",
+          "count": "1",
+          "bounty": 30
+        }
     },
-    {"start": 25, "action": "addMessage", "params": ["wave 2","get ready!"]},
-    {"start": 0, "end": 50, "action": "spawnEnemy", "interval": 4 , "params":
-      {"src": "./assets/sprites/Foe2.svg", "mode": "orbit", "health": 5, "speed": 0.01, "radius": "eval(450+i*5)", "gravity": 1.005, "count": 8, "bounty": 50, "threshold": "eval(250+i*20)",
+    {"start": 25, "end": 30, "level": 2},
+    {"start": 25, "end": 50, "action": "spawnEnemy", "interval": 4 , "params":
+      {"src": "./assets/sprites/Foe2.svg",
+        "mode": "orbit",
+        "health": 5,
+        "speed": 0.02,
+        "radius": "eval(450+i*5)",
+        "gravity": 1.005,
+        "count": 6,
+        "bounty": 50,
+        "threshold": "eval(250+i*20)",
         "agenda": [
           {"condition": "(this.frame>this.threshold)", "modify": {"mode": "follow", "speed": 1.5}}
         ]
       }
     },
-    {"start": 50, "action": "addMessage","params": ["boss fight","get ready!"]},
-    {"start": 50, "end": 75, "action": "spawnEnemy","interval": 25, "speed": "2", "params":
-      {"src": "./assets/sprites/Foe3.svg", "mode": "evade", "model": "destroyer", "bounty": 1000}
+    {"start": 50, "end": 53, "level": 3},
+    {"start": 50, "end": 75, "action": "spawnEnemy", "interval": 4 , "params":
+      {
+        "src": "./assets/sprites/Foe2.svg",
+        "mode": "orbit",
+        "health": 5,
+        "speed": 0.02,
+        "radius": "eval(450+i*5)",
+        "gravity": 1.005,
+        "count": 8,
+        "bounty": 50,
+        "threshold": "eval(250+i*20)",
+        "agenda": [
+          {"condition": "(this.frame>this.threshold)", "modify": {"mode": "follow", "speed": 1.5}}
+        ]
+      }
     },
-    {"start": 75, "action": "bonus", "params": {
-      "message": "well done!", "reward": "1up", "timeBonus": "1"
+    {"start": 75, "end": 79, "level": 4, "action": "addMessage","params": ["boss fight","get ready!"]},
+    {"start": 80, "end": 82, "loop": 81, "until": "cleared", "action": "spawnEnemy", "cycles": 1, "speed": "2", "params":
+      {
+        "src": "./assets/sprites/Foe3.svg",
+        "fatalSound": "bossDeath",
+        "explosion": 5,
+        "agenda": [
+          {"condition": "(this.frame % 50 == 1)", "events":
+            {"shoot": {"src": "./assets/sprites/Bullet2.svg", "agility": 0.1, "scale": 0.1, "ttl": 100, "target": "player", "speed": 1.5, "count": 3, "spread": 0.2, "type": "enemyBullet"}}
+          }
+        ],
+        "immunities": ["shock", "collision"],
+        "mode": "orbit",
+        "evasion": 10,
+        "scale": 0.3,
+        "radius": 300,
+        "gravity": 1.002,
+        "speed": 0.01,
+        "model": "boss",
+        "bounty": 1000,
+        "health": 250,
+        "inertia": 5
+      }
+    },
+    {"start": 85, "end": 90, "level": 5},
+    {"start": 91, "end": 115, "action": "spawnEnemy", "interval": 2, "params":
+      {
+        "src": "./assets/sprites/Foe4.svg",
+        "mode": "follow",
+        "speed": 1.5,
+        "health": 20,
+        "count": 2,
+        "bounty": 50
+      }
+    },
+    {"start": 115, "end": 120, "level": 6},
+    {"start": 121, "end": 180, "action": "spawnEnemy", "interval": 4 , "params":
+    {
+      "src": "./assets/sprites/Foe2.svg",
+      "mode": "orbit",
+      "health": 10,
+      "speed": 0.03,
+      "radius": "eval(450+i*5)",
+      "gravity": 1.005,
+      "count": 8,
+      "bounty": 70,
+      "threshold": "eval(220+i*20)",
+      "agenda": [
+        {"condition": "(this.frame>this.threshold)", "modify": {"mode": "follow", "speed": 2}}
+      ]
+    }
+    },
+    {"start": 150, "end": 180, "action": "spawnEnemy", "interval": 2, "params":
+    {
+      "src": "./assets/sprites/Foe4.svg",
+      "mode": "follow",
+      "speed": 2,
+      "health": 20,
+      "count": 3,
+      "bounty": 50
+    }
+    },
+    {"start": 180, "end": 185, "level": 7},
+    {"start": 185, "end": 220, "action": "spawnEnemy", "interval": 2, "params":
+    {
+      "src": "./assets/sprites/Foe4.svg",
+      "mode": "follow",
+      "speed": 2.5,
+      "health": 20,
+      "count": 3,
+      "bounty": 50
+    }
+    },
+    {"start": 220, "end": 224, "level": 8, "action": "addMessage","params": ["boss fight","get ready!"]},
+    {"start": 225, "end": 226, "loop": 226, "until": "cleared", "action": "spawnEnemy", "cycles": 1, "speed": "2", "params":
+    {
+      "src": "./assets/sprites/Foe3.svg",
+      "fatalSound": "bossDeath",
+      "explosion": 5,
+      "agenda": [
+        {"condition": "(this.frame % 45 == 1)", "events":
+        {"shoot": {"src": "./assets/sprites/Bullet2.svg", "agility": 0.1, "scale": 0.1, "ttl": 100, "target": "player", "speed": 1.7, "count": 3, "spread": 0.2, "type": "enemyBullet"}}
+        }
+      ],
+      "immunities": ["shock", "collision"],
+      "mode": "orbit",
+      "evasion": 10,
+      "scale": 0.3,
+      "radius": 300,
+      "gravity": 1.002,
+      "speed": 0.02,
+      "model": "boss",
+      "bounty": 2500,
+      "health": 400,
+      "inertia": 5
+    }
+    },
+    {"start": 115, "end": 120, "action": "bonus", "params": {
+      "message": "well done!",
+      "reward": "1up",
+      "timeBonus": "1"
     }}
   ],
   "sounds": {
@@ -43,10 +169,12 @@
     "laser5":             "./assets/sounds/laser5.mp3",
     "laser6":             "./assets/sounds/laser6.mp3",
     "enemyCollision":     "./assets/sounds/wobble.mp3",
+    "enemyHit":           "./assets/sounds/blowup4.mp3",
     "playerDeath":        "./assets/sounds/blowup5.mp3",
-    "enemyDeath1":        "./assets/sounds/blowup3.mp3",
+    "enemyDeath1":         "./assets/sounds/blowup3.mp3",
     "enemyDeath2":        "./assets/sounds/blowup3b.mp3",
     "enemyDeath3":        "./assets/sounds/blowup3d.mp3",
+    "bossDeath":          "./assets/sounds/blowup6.mp3",
     "blackhole":          "./assets/sounds/whoosh3.mp3",
     "levelup":            "./assets/sounds/levelup.mp3",
     "extralife":          "./assets/sounds/charged2.mp3",
@@ -56,6 +184,9 @@
     "charged":            "./assets/sounds/switch.mp3",
     "charged2":           "./assets/sounds/switch2.mp3",
     "bonus":              "./assets/sounds/bonus.mp3",
+    "upgradeTorpedoOn":   "./assets/sounds/rocket3.mp3",
+    "upgradeTorpedoOff":  "",
+    "torpedoBlowup":      "./assets/sounds/blowup7.mp3",
     "upgradeOn":          "./assets/sounds/blip.mp3",
     "upgradeOff":         "./assets/sounds/drop.mp3",
     "upgradeDepleted":    "./assets/sounds/powerdown9.mp3"
@@ -79,6 +210,7 @@
     "bomb":               "./assets/icons/Bomb.svg",
     "shield":             "./assets/icons/Shield.svg",
     "stealth":            "./assets/icons/Stealth.svg",
+    "torpedo":            "./assets/icons/Torpedo.svg",
     "confusion":          "./assets/icons/Confusion.svg",
     "blackhole":          "./assets/icons/BlackHole.svg"
   },
@@ -88,6 +220,7 @@
     "shieldOverlay":      "./assets/sprites/ShieldOverlay.svg",
     "blackholeOverlay":   "./assets/sprites/Twirl.svg",
     "bullet":             "./assets/sprites/Laserbeam.svg",
+    "torpedo":            "./assets/sprites/Torpedo.svg",
     "explosion1":         "./assets/sprites/Explosion5.svg",
     "explosion2":         "./assets/sprites/Explosion6.svg",
     "explosion3":         "./assets/sprites/Explosion3.svg",
